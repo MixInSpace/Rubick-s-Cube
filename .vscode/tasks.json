@@ -1,0 +1,108 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "generate-texture-data",
+            "type": "shell",
+            "command": "python tools/convert_textures.py src/resources/textures src/resources/embedded_textures.c; gcc -c src/resources/embedded_textures.c -I src/resources -o src/precompiled/embedded_textures.o",
+            "group": "build",
+            "problemMatcher": ["$gcc"],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "build-win",
+            "type": "shell",
+            "command": "gcc",
+            "args": [
+                "-g",
+                "${workspaceFolder}/src/*.c",
+                "${workspaceFolder}/src/core/*.c",
+                "${workspaceFolder}/src/math/*.c",
+                "${workspaceFolder}/src/renderer/*.c",
+                "${workspaceFolder}/src/resources/resource_manager.c",
+                "${workspaceFolder}/src/scene/*.c",
+                "${workspaceFolder}/src/utils/*.c",
+                "${workspaceFolder}/src/precompiled/embedded_textures.o",
+                "-o",
+                "${workspaceFolder}/bin/main.exe",
+                "-I${workspaceFolder}/include",
+                "-I${workspaceFolder}/src",
+                "-L${workspaceFolder}/lib/win",
+                "-DGLEW_STATIC",
+                "-DGLFW_STATIC",
+                "-static",
+                "-static-libgcc",
+                "-static-libstdc++",
+                "-lglfw3",
+                "-lglew32s",
+                "-lopengl32",
+                "-lgdi32",
+                "-lm",
+                "-lpthread"
+            ],
+            "dependsOn": "generate-texture-data",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "run-win",
+            "type": "shell",
+            "command": "${workspaceFolder}/bin/main.exe",
+            "dependsOn": "build-win",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/bin"
+            }
+        },
+        {
+            "label": "build-mac",
+            "type": "shell",
+            "command": "gcc",
+            "args": [
+                "-g",
+                "${workspaceFolder}/src/*.c",
+                "${workspaceFolder}/src/core/*.c",
+                "${workspaceFolder}/src/math/*.c",
+                "${workspaceFolder}/src/renderer/*.c",
+                "${workspaceFolder}/src/resources/resource_manager.c",
+                "${workspaceFolder}/src/scene/*.c",
+                "${workspaceFolder}/src/utils/*.c",
+                "${workspaceFolder}/src/precompiled/embedded_textures.o",
+                "-o",
+                "${workspaceFolder}/bin/main",
+                "-I${workspaceFolder}/include",
+                "-I${workspaceFolder}/src",
+                "-L${workspaceFolder}/lib/mac",
+                "-DGLEW_STATIC",
+                "-DGLFW_STATIC",
+                "-lglfw",
+                "-lGLEW",
+                "-lGL",
+                "-lX11",
+                "-lXrandr",
+                "-lXinerama",
+                "-lm"
+            ],
+            "dependsOn": "generate-texture-data",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        }
+    ]
+}
