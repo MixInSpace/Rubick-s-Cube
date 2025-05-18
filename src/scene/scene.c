@@ -374,98 +374,110 @@ void scene_render(Scene* scene, Window* window) {
         // Enable textures
         shader_set_bool(&scene->shader, "useTexture", true);
         
-        // For animation, we need cube indices for the current rotating layer
-        int layerIndices[9];  // Maximum 9 cubes in a layer
-        int layerCount = 0;
-        
-        if (scene->isRotating) {
-            // Get the indices of cubes in the rotating layer
-            for (int i = 0; i < scene->numCubes; i++) {
-                int x = i % 3;             // 0, 1, 2, 0, 1, 2, ...
-                int y = (i / 3) % 3;       // 0, 0, 0, 1, 1, 1, ...
-                int z = i / 9;             // 0, 0, 0, 0, 0, 0, ...
-                
-                // Check if this cube belongs to the rotating layer
-                if ((scene->rotationAxis == 'x' && x == scene->rotatingLayer) ||
-                    (scene->rotationAxis == 'y' && y == scene->rotatingLayer) ||
-                    (scene->rotationAxis == 'z' && z == scene->rotatingLayer)) {
-                    layerIndices[layerCount++] = i;
-                }
-            }
-        }
-        
         // Render the Rubik's cube grid
         for (int i = 0; i < scene->numCubes; i++) {
+            // Get cube position in grid (0-2 for each dimension)
+            int x = i % 3;              // 0, 1, 2, 0, 1, 2, ...
+            int y = (i / 3) % 3;        // 0, 0, 0, 1, 1, 1, ...
+            int z = i / 9;              // 0, 0, 0, 0, 0, 0, ...
+            
             // Check if this cube is part of the rotating layer
-            bool isRotatingCube = false;
-            for (int j = 0; j < layerCount; j++) {
-                if (layerIndices[j] == i) {
-                    isRotatingCube = true;
-                    break;
-                }
-            }
+            bool isRotatingCube = scene->isRotating && (
+                (scene->rotationAxis == 'x' && x == scene->rotatingLayer) ||
+                (scene->rotationAxis == 'y' && y == scene->rotatingLayer) ||
+                (scene->rotationAxis == 'z' && z == scene->rotatingLayer)
+            );
             
             // Create model matrix for this cube
             Mat4 model = mat4_identity();
             
-            // Position of this cube
-            Vec3 cubePos = {
-                scene->positions[i][0],
-                scene->positions[i][1],
-                scene->positions[i][2]
-            };
-            
-            // If this cube is part of the rotating layer and we are animating a rotation
-            if (scene->isRotating && isRotatingCube) {
+            if (isRotatingCube) {
                 // Calculate rotation angle in radians
                 float angleRad = scene->rotationAngle * (float)scene->rotationDirection * (float)M_PI / 180.0f;
                 
-                // First translate the cube to origin
-                model = mat4_identity();
-                
-                // Apply translation to position
-                model = mat4_translation(
-                    cubePos.x,
-                    cubePos.y,
-                    cubePos.z
+                // Calculate normal model matrix without rotation
+                Mat4 normalModel = mat4_translation(
+                    scene->positions[i][0],
+                    scene->positions[i][1],
+                    scene->positions[i][2]
                 );
                 
-                // Apply rotation around the correct axis
-                // We need to rotate around the center of the Rubik's cube (0,0,0)
-                // so we translate to origin, rotate, then translate back
-                Mat4 rotationMatrix = mat4_identity();
-                
+                // Apply rotation based on axis
                 if (scene->rotationAxis == 'x') {
-                    // Rotate around X axis
-                    rotationMatrix = mat4_rotation_x(angleRad);
+                    // Model matrix: First create a rotation matrix
+                    Mat4 rotationMatrix = mat4_rotation_x(angleRad);
+                    
+                    // Apply rotation to the position 
+                    Vec3 pos = {
+                        scene->positions[i][0],
+                        scene->positions[i][1],
+                        scene->positions[i][2]
+                    };
+                    
+                    // Rotate position around origin
+                    Vec3 rotated;
+                    rotated.x = pos.x;
+                    rotated.y = pos.y * cosf(angleRad) - pos.z * sinf(angleRad);
+                    rotated.z = pos.y * sinf(angleRad) + pos.z * cosf(angleRad);
+                    
+                    // Create model matrix with rotated position
+                    model = mat4_translation(rotated.x, rotated.y, rotated.z);
+                    
+                    // Apply same rotation to the cube orientation
+                    model = mat4_multiply(model, rotationMatrix);
+                    
                 } else if (scene->rotationAxis == 'y') {
-                    // Rotate around Y axis
-                    rotationMatrix = mat4_rotation_y(angleRad);
-                } else if (scene->rotationAxis == 'z') {
-                    // Rotate around Z axis
-                    rotationMatrix = mat4_rotation_z(angleRad);
+                    // Model matrix: First create a rotation matrix
+                    Mat4 rotationMatrix = mat4_rotation_y(angleRad);
+                    
+                    // Apply rotation to the position 
+                    Vec3 pos = {
+                        scene->positions[i][0],
+                        scene->positions[i][1],
+                        scene->positions[i][2]
+                    };
+                    
+                    // Rotate position around origin
+                    Vec3 rotated;
+                    rotated.x = pos.x * cosf(angleRad) + pos.z * sinf(angleRad);
+                    rotated.y = pos.y;
+                    rotated.z = -pos.x * sinf(angleRad) + pos.z * cosf(angleRad);
+                    
+                    // Create model matrix with rotated position
+                    model = mat4_translation(rotated.x, rotated.y, rotated.z);
+                    
+                    // Apply same rotation to the cube orientation
+                    model = mat4_multiply(model, rotationMatrix);
+                    
+                } else { // 'z'
+                    // Model matrix: First create a rotation matrix
+                    Mat4 rotationMatrix = mat4_rotation_z(angleRad);
+                    
+                    // Apply rotation to the position 
+                    Vec3 pos = {
+                        scene->positions[i][0],
+                        scene->positions[i][1],
+                        scene->positions[i][2]
+                    };
+                    
+                    // Rotate position around origin
+                    Vec3 rotated;
+                    rotated.x = pos.x * cosf(angleRad) - pos.y * sinf(angleRad);
+                    rotated.y = pos.x * sinf(angleRad) + pos.y * cosf(angleRad);
+                    rotated.z = pos.z;
+                    
+                    // Create model matrix with rotated position
+                    model = mat4_translation(rotated.x, rotated.y, rotated.z);
+                    
+                    // Apply same rotation to the cube orientation
+                    model = mat4_multiply(model, rotationMatrix);
                 }
-                
-                // Calculate the pivot point for rotation (center of the Rubik's cube)
-                Vec3 pivot = {0.0f, 0.0f, 0.0f};
-                
-                // Apply translation to move to pivot point
-                Mat4 toPivot = mat4_translation(-pivot.x, -pivot.y, -pivot.z);
-                
-                // Apply translation to move back from pivot point
-                Mat4 fromPivot = mat4_translation(pivot.x, pivot.y, pivot.z);
-                
-                // Combine matrices: translate to position, to pivot, rotate, from pivot
-                Mat4 translateToPosition = mat4_translation(cubePos.x, cubePos.y, cubePos.z);
-                Mat4 combinedRotation = mat4_multiply(fromPivot, mat4_multiply(rotationMatrix, toPivot));
-                
-                model = mat4_multiply(translateToPosition, combinedRotation);
             } else {
                 // Standard positioning for non-rotating cubes
                 model = mat4_translation(
-                    cubePos.x,
-                    cubePos.y,
-                    cubePos.z
+                    scene->positions[i][0],
+                    scene->positions[i][1],
+                    scene->positions[i][2]
                 );
             }
             
@@ -783,33 +795,38 @@ void scene_start_rotation(Scene* scene, FaceIndex face, RotationDirection direct
     scene->rotationAngle = 0.0f;
     scene->rotationTarget = 90.0f; // 90 degrees rotation
     scene->rotatingFace = face;
-    scene->rotationDirection = direction;
     
     // Determine which axis to rotate around and which layer
     switch (face) {
         case FACE_IDX_TOP:
             scene->rotationAxis = 'y';
             scene->rotatingLayer = 2; // Top layer (y=2)
+            scene->rotationDirection = direction; // Keep direction as is
             break;
         case FACE_IDX_BOTTOM:
             scene->rotationAxis = 'y';
             scene->rotatingLayer = 0; // Bottom layer (y=0)
+            scene->rotationDirection = -direction; // Invert direction
             break;
         case FACE_IDX_LEFT:
             scene->rotationAxis = 'x';
             scene->rotatingLayer = 0; // Left layer (x=0)
+            scene->rotationDirection = -direction; // Invert direction
             break;
         case FACE_IDX_RIGHT:
             scene->rotationAxis = 'x';
             scene->rotatingLayer = 2; // Right layer (x=2)
+            scene->rotationDirection = direction; // Keep direction as is
             break;
         case FACE_IDX_FRONT:
             scene->rotationAxis = 'z';
             scene->rotatingLayer = 2; // Front layer (z=2)
+            scene->rotationDirection = direction; // Keep direction as is
             break;
         case FACE_IDX_BACK:
             scene->rotationAxis = 'z';
             scene->rotatingLayer = 0; // Back layer (z=0)
+            scene->rotationDirection = -direction; // Invert direction
             break;
     }
 }
