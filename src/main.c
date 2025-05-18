@@ -26,7 +26,7 @@ int main() {
     //const char* scrambledColors = "WRBRWWRWWBOROBYYBORBOYOBYYRGBGYYGYGORRORGROGWGGBWOWLYLYL";
     
     // Checkerboard pattern (uncomment to test)
-    const char* checkerboard = "WYWYWYWYWBGBGBGBGBRORORORORYWYWYWYWYGBGBGBGBGORORORORO";
+    const char* checkerboard = "WYWRORORYGBGORGBGBGBROROBORYWYWYGBGBGBYWYWYWWYWGBORORO";
     
     // Apply solid colors to verify basic functionality
     if (!scene_set_cube_state_from_string(&app.scene, checkerboard)) {
