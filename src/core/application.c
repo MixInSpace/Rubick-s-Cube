@@ -18,6 +18,9 @@ bool application_init(Application* app) {
         return false;
     }
     
+    // Set window's application pointer
+    app->window.app = (struct Application*)app;
+    
     // Initialize resource manager
     if (!resource_manager_init()) {
         fprintf(stderr, "Failed to initialize resource manager\n");

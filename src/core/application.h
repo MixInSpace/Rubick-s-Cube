@@ -5,7 +5,7 @@
 #include "../scene/scene.h"
 #include <stdbool.h>
 
-typedef struct {
+typedef struct Application {
     Window window;
     Scene scene;
     bool running;

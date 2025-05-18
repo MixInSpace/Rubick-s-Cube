@@ -33,6 +33,24 @@ int main() {
         fprintf(stderr, "Failed to set cube state from string\n");
     }
     
+    // Display controls instructions
+    printf("\n=== Rubik's Cube Controls ===\n");
+    printf("Camera Controls:\n");
+    printf("  - Left Mouse Button: Rotate camera view\n");
+    printf("  - Mouse Wheel: Zoom in/out\n");
+    printf("  - +/-: Adjust field of view\n");
+    printf("  - 0: Reset field of view to default\n");
+    printf("\n");
+    printf("Cube Controls:\n");
+    printf("  - U: Rotate top face clockwise\n");
+    printf("  - D: Rotate bottom face clockwise\n");
+    printf("  - F: Rotate front face clockwise\n");
+    printf("  - B: Rotate back face clockwise\n");
+    printf("  - L: Rotate left face clockwise\n");
+    printf("  - R: Rotate right face clockwise\n");
+    printf("  - Shift + Letter: Rotate counter-clockwise\n");
+    printf("  - ESC: Exit application\n\n");
+    
     application_run(&app);
     
     application_cleanup(&app);

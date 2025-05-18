@@ -6,6 +6,10 @@
 #include <stdbool.h>
 #include "camera.h"
 #include "../types.h"
+#include "../scene/scene.h"
+
+// Forward declarations
+struct Application;
 
 struct Window {
     GLFWwindow* handle;
@@ -20,6 +24,9 @@ struct Window {
     
     // Camera instance
     Camera camera;
+    
+    // Pointer to parent application (for keyboard controls)
+    struct Application* app;
 };
 
 bool window_init(Window* window, int width, int height, const char* title);

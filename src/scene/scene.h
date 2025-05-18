@@ -27,6 +27,12 @@ typedef enum {
     FACE_IDX_BOTTOM = 5  // D - Yellow
 } FaceIndex;
 
+// Rotation direction
+typedef enum {
+    ROTATE_CLOCKWISE = 1,
+    ROTATE_COUNTERCLOCKWISE = -1
+} RotationDirection;
+
 // Struct to store RGB color values
 typedef struct {
     float r, g, b;
@@ -47,6 +53,15 @@ struct Scene {
     
     // Color data for faces
     RGBColor cubeColors[6][9]; // [face][facelet] RGB colors
+    
+    // Rotation animation
+    bool isRotating;
+    float rotationAngle;
+    float rotationTarget;
+    FaceIndex rotatingFace;
+    RotationDirection rotationDirection;
+    int rotatingLayer;     // 0=bottom/left/back, 1=middle, 2=top/right/front
+    char rotationAxis;     // 'x', 'y', or 'z'
 };
 
 bool scene_init(Scene* scene);
@@ -71,5 +86,22 @@ bool scene_set_cube_state_from_string(Scene* scene, const char* state);
 
 // Helper function to create a cube with custom colors based on position and stored colors
 Mesh create_custom_colored_cube(unsigned int visibleFaces, Scene* scene, int x, int y, int z);
+
+// Face rotation functions
+void scene_rotate_face(Scene* scene, FaceIndex face, RotationDirection direction);
+
+// Specific face rotations (wrapper functions)
+void scene_rotate_top(Scene* scene, RotationDirection direction);
+void scene_rotate_bottom(Scene* scene, RotationDirection direction);
+void scene_rotate_left(Scene* scene, RotationDirection direction);
+void scene_rotate_right(Scene* scene, RotationDirection direction);
+void scene_rotate_front(Scene* scene, RotationDirection direction);
+void scene_rotate_back(Scene* scene, RotationDirection direction);
+
+// Start a face rotation animation
+void scene_start_rotation(Scene* scene, FaceIndex face, RotationDirection direction);
+
+// Check if rotation is in progress
+bool scene_is_rotating(Scene* scene);
 
 #endif /* SCENE_H */

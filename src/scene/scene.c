@@ -163,6 +163,13 @@ bool scene_init_rubiks(Scene* scene) {
     scene->isRubiksCube = true;
     scene->numCubes = 27; // 3x3x3 grid
     
+    // Initialize rotation state
+    scene->isRotating = false;
+    scene->rotationAngle = 0.0f;
+    scene->rotationTarget = 0.0f;
+    scene->rotatingLayer = 0;
+    scene->rotationAxis = 'y';
+    
     // Initialize the default colors for each face
     // White for top (U)
     for (int i = 0; i < 9; i++) {
@@ -314,8 +321,31 @@ bool scene_init_rubiks(Scene* scene) {
     return true;
 }
 
+// Update rotation animation
+static void update_rotation(Scene* scene, float deltaTime) {
+    if (!scene->isRotating) {
+        return;
+    }
+    
+    // Rotation speed (degrees per second)
+    float rotationSpeed = 270.0f; // 270 degrees per second (1/3 second per rotation)
+    
+    // Update rotation angle
+    scene->rotationAngle += rotationSpeed * deltaTime;
+    
+    // If rotation is complete
+    if (scene->rotationAngle >= scene->rotationTarget) {
+        scene->isRotating = false;
+        scene->rotationAngle = 0.0f;
+        
+        // Apply the rotation to the cube state
+        scene_rotate_face(scene, scene->rotatingFace, scene->rotationDirection);
+    }
+}
+
 void scene_update(Scene* scene, float deltaTime) {
-    // Empty - camera updates happen in window
+    // Update rotation animation if in progress
+    update_rotation(scene, deltaTime);
 }
 
 void scene_render(Scene* scene, Window* window) {
@@ -344,18 +374,100 @@ void scene_render(Scene* scene, Window* window) {
         // Enable textures
         shader_set_bool(&scene->shader, "useTexture", true);
         
+        // For animation, we need cube indices for the current rotating layer
+        int layerIndices[9];  // Maximum 9 cubes in a layer
+        int layerCount = 0;
+        
+        if (scene->isRotating) {
+            // Get the indices of cubes in the rotating layer
+            for (int i = 0; i < scene->numCubes; i++) {
+                int x = i % 3;             // 0, 1, 2, 0, 1, 2, ...
+                int y = (i / 3) % 3;       // 0, 0, 0, 1, 1, 1, ...
+                int z = i / 9;             // 0, 0, 0, 0, 0, 0, ...
+                
+                // Check if this cube belongs to the rotating layer
+                if ((scene->rotationAxis == 'x' && x == scene->rotatingLayer) ||
+                    (scene->rotationAxis == 'y' && y == scene->rotatingLayer) ||
+                    (scene->rotationAxis == 'z' && z == scene->rotatingLayer)) {
+                    layerIndices[layerCount++] = i;
+                }
+            }
+        }
+        
         // Render the Rubik's cube grid
         for (int i = 0; i < scene->numCubes; i++) {
+            // Check if this cube is part of the rotating layer
+            bool isRotatingCube = false;
+            for (int j = 0; j < layerCount; j++) {
+                if (layerIndices[j] == i) {
+                    isRotatingCube = true;
+                    break;
+                }
+            }
+            
             // Create model matrix for this cube
             Mat4 model = mat4_identity();
             
-            // Order matters! First translate, then scale (or the gap will be scaled too)
-            // Translate to position
-            model = mat4_translation(
+            // Position of this cube
+            Vec3 cubePos = {
                 scene->positions[i][0],
                 scene->positions[i][1],
                 scene->positions[i][2]
-            );
+            };
+            
+            // If this cube is part of the rotating layer and we are animating a rotation
+            if (scene->isRotating && isRotatingCube) {
+                // Calculate rotation angle in radians
+                float angleRad = scene->rotationAngle * (float)scene->rotationDirection * (float)M_PI / 180.0f;
+                
+                // First translate the cube to origin
+                model = mat4_identity();
+                
+                // Apply translation to position
+                model = mat4_translation(
+                    cubePos.x,
+                    cubePos.y,
+                    cubePos.z
+                );
+                
+                // Apply rotation around the correct axis
+                // We need to rotate around the center of the Rubik's cube (0,0,0)
+                // so we translate to origin, rotate, then translate back
+                Mat4 rotationMatrix = mat4_identity();
+                
+                if (scene->rotationAxis == 'x') {
+                    // Rotate around X axis
+                    rotationMatrix = mat4_rotation_x(angleRad);
+                } else if (scene->rotationAxis == 'y') {
+                    // Rotate around Y axis
+                    rotationMatrix = mat4_rotation_y(angleRad);
+                } else if (scene->rotationAxis == 'z') {
+                    // Rotate around Z axis
+                    rotationMatrix = mat4_rotation_z(angleRad);
+                }
+                
+                // Calculate the pivot point for rotation (center of the Rubik's cube)
+                Vec3 pivot = {0.0f, 0.0f, 0.0f};
+                
+                // Apply translation to move to pivot point
+                Mat4 toPivot = mat4_translation(-pivot.x, -pivot.y, -pivot.z);
+                
+                // Apply translation to move back from pivot point
+                Mat4 fromPivot = mat4_translation(pivot.x, pivot.y, pivot.z);
+                
+                // Combine matrices: translate to position, to pivot, rotate, from pivot
+                Mat4 translateToPosition = mat4_translation(cubePos.x, cubePos.y, cubePos.z);
+                Mat4 combinedRotation = mat4_multiply(fromPivot, mat4_multiply(rotationMatrix, toPivot));
+                
+                model = mat4_multiply(translateToPosition, combinedRotation);
+            } else {
+                // Standard positioning for non-rotating cubes
+                model = mat4_translation(
+                    cubePos.x,
+                    cubePos.y,
+                    cubePos.z
+                );
+            }
             
             // Scale the cube (reduce size to create the gap effect)
             model = mat4_scale_vec3(model, (Vec3){0.3f, 0.3f, 0.3f});
@@ -654,4 +766,447 @@ Mesh create_custom_colored_cube(unsigned int visibleFaces, Scene* scene, int x, 
     glBindVertexArray(0);
     
     return mesh;
+}
+
+// Helper function to check if rotation is in progress
+bool scene_is_rotating(Scene* scene) {
+    return scene->isRotating;
+}
+
+// Start a face rotation animation
+void scene_start_rotation(Scene* scene, FaceIndex face, RotationDirection direction) {
+    if (scene->isRotating) {
+        return; // Don't start a new rotation if one is in progress
+    }
+    
+    scene->isRotating = true;
+    scene->rotationAngle = 0.0f;
+    scene->rotationTarget = 90.0f; // 90 degrees rotation
+    scene->rotatingFace = face;
+    scene->rotationDirection = direction;
+    
+    // Determine which axis to rotate around and which layer
+    switch (face) {
+        case FACE_IDX_TOP:
+            scene->rotationAxis = 'y';
+            scene->rotatingLayer = 2; // Top layer (y=2)
+            break;
+        case FACE_IDX_BOTTOM:
+            scene->rotationAxis = 'y';
+            scene->rotatingLayer = 0; // Bottom layer (y=0)
+            break;
+        case FACE_IDX_LEFT:
+            scene->rotationAxis = 'x';
+            scene->rotatingLayer = 0; // Left layer (x=0)
+            break;
+        case FACE_IDX_RIGHT:
+            scene->rotationAxis = 'x';
+            scene->rotatingLayer = 2; // Right layer (x=2)
+            break;
+        case FACE_IDX_FRONT:
+            scene->rotationAxis = 'z';
+            scene->rotatingLayer = 2; // Front layer (z=2)
+            break;
+        case FACE_IDX_BACK:
+            scene->rotationAxis = 'z';
+            scene->rotatingLayer = 0; // Back layer (z=0)
+            break;
+    }
+}
+
+// Helper function to get cube indices for a specific layer
+static void get_layer_cubes(int layer, char axis, int* indices, int* count) {
+    *count = 0;
+    
+    for (int i = 0; i < 27; i++) {
+        int x = i % 3;              // 0, 1, 2, 0, 1, 2, ...
+        int y = (i / 3) % 3;        // 0, 0, 0, 1, 1, 1, ...
+        int z = i / 9;              // 0, 0, 0, 0, 0, 0, ...
+        
+        // Check if this cube belongs to the specified layer
+        if ((axis == 'x' && x == layer) ||
+            (axis == 'y' && y == layer) ||
+            (axis == 'z' && z == layer)) {
+            indices[*count] = i;
+            (*count)++;
+        }
+    }
+}
+
+// Rotate the colors on a face (and adjacent faces)
+static void rotate_face_colors(Scene* scene, FaceIndex face, RotationDirection direction) {
+    // Store a copy of the current colors
+    RGBColor tempColors[6][9];
+    for (int f = 0; f < 6; f++) {
+        for (int p = 0; p < 9; p++) {
+            tempColors[f][p] = scene->cubeColors[f][p];
+        }
+    }
+    
+    // Rotate the main face
+    if (direction == ROTATE_CLOCKWISE) {
+        // Main face clockwise rotation (corners)
+        scene->cubeColors[face][0] = tempColors[face][6];
+        scene->cubeColors[face][2] = tempColors[face][0];
+        scene->cubeColors[face][8] = tempColors[face][2];
+        scene->cubeColors[face][6] = tempColors[face][8];
+        
+        // Main face clockwise rotation (edges)
+        scene->cubeColors[face][1] = tempColors[face][3];
+        scene->cubeColors[face][5] = tempColors[face][1];
+        scene->cubeColors[face][7] = tempColors[face][5];
+        scene->cubeColors[face][3] = tempColors[face][7];
+    } else {
+        // Main face counter-clockwise rotation (corners)
+        scene->cubeColors[face][0] = tempColors[face][2];
+        scene->cubeColors[face][2] = tempColors[face][8];
+        scene->cubeColors[face][8] = tempColors[face][6];
+        scene->cubeColors[face][6] = tempColors[face][0];
+        
+        // Main face counter-clockwise rotation (edges)
+        scene->cubeColors[face][1] = tempColors[face][5];
+        scene->cubeColors[face][5] = tempColors[face][7];
+        scene->cubeColors[face][7] = tempColors[face][3];
+        scene->cubeColors[face][3] = tempColors[face][1];
+    }
+    
+    // For the adjacent faces, the mapping depends on which face we're rotating
+    switch (face) {
+        case FACE_IDX_TOP:
+            if (direction == ROTATE_CLOCKWISE) {
+                // Move front face (top row) to right
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_RIGHT][i] = tempColors[FACE_IDX_FRONT][i];
+                }
+                // Move right face (top row) to back
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_BACK][i] = tempColors[FACE_IDX_RIGHT][i];
+                }
+                // Move back face (top row) to left
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_LEFT][i] = tempColors[FACE_IDX_BACK][i];
+                }
+                // Move left face (top row) to front
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_FRONT][i] = tempColors[FACE_IDX_LEFT][i];
+                }
+            } else {
+                // Move front face (top row) to left
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_LEFT][i] = tempColors[FACE_IDX_FRONT][i];
+                }
+                // Move left face (top row) to back
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_BACK][i] = tempColors[FACE_IDX_LEFT][i];
+                }
+                // Move back face (top row) to right
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_RIGHT][i] = tempColors[FACE_IDX_BACK][i];
+                }
+                // Move right face (top row) to front
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_FRONT][i] = tempColors[FACE_IDX_RIGHT][i];
+                }
+            }
+            break;
+            
+        case FACE_IDX_BOTTOM:
+            if (direction == ROTATE_CLOCKWISE) {
+                // Move front face (bottom row) to left
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_LEFT][6+i] = tempColors[FACE_IDX_FRONT][6+i];
+                }
+                // Move left face (bottom row) to back
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_BACK][6+i] = tempColors[FACE_IDX_LEFT][6+i];
+                }
+                // Move back face (bottom row) to right
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_RIGHT][6+i] = tempColors[FACE_IDX_BACK][6+i];
+                }
+                // Move right face (bottom row) to front
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_FRONT][6+i] = tempColors[FACE_IDX_RIGHT][6+i];
+                }
+            } else {
+                // Move front face (bottom row) to right
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_RIGHT][6+i] = tempColors[FACE_IDX_FRONT][6+i];
+                }
+                // Move right face (bottom row) to back
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_BACK][6+i] = tempColors[FACE_IDX_RIGHT][6+i];
+                }
+                // Move back face (bottom row) to left
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_LEFT][6+i] = tempColors[FACE_IDX_BACK][6+i];
+                }
+                // Move left face (bottom row) to front
+                for (int i = 0; i < 3; i++) {
+                    scene->cubeColors[FACE_IDX_FRONT][6+i] = tempColors[FACE_IDX_LEFT][6+i];
+                }
+            }
+            break;
+            
+        case FACE_IDX_FRONT:
+            if (direction == ROTATE_CLOCKWISE) {
+                // Move top face (bottom row) to right
+                scene->cubeColors[FACE_IDX_RIGHT][0] = tempColors[FACE_IDX_TOP][6];
+                scene->cubeColors[FACE_IDX_RIGHT][3] = tempColors[FACE_IDX_TOP][7];
+                scene->cubeColors[FACE_IDX_RIGHT][6] = tempColors[FACE_IDX_TOP][8];
+                
+                // Move right face (left column) to bottom
+                scene->cubeColors[FACE_IDX_BOTTOM][2] = tempColors[FACE_IDX_RIGHT][0];
+                scene->cubeColors[FACE_IDX_BOTTOM][1] = tempColors[FACE_IDX_RIGHT][3];
+                scene->cubeColors[FACE_IDX_BOTTOM][0] = tempColors[FACE_IDX_RIGHT][6];
+                
+                // Move bottom face (top row) to left
+                scene->cubeColors[FACE_IDX_LEFT][8] = tempColors[FACE_IDX_BOTTOM][2];
+                scene->cubeColors[FACE_IDX_LEFT][5] = tempColors[FACE_IDX_BOTTOM][1];
+                scene->cubeColors[FACE_IDX_LEFT][2] = tempColors[FACE_IDX_BOTTOM][0];
+                
+                // Move left face (right column) to top
+                scene->cubeColors[FACE_IDX_TOP][6] = tempColors[FACE_IDX_LEFT][2];
+                scene->cubeColors[FACE_IDX_TOP][7] = tempColors[FACE_IDX_LEFT][5];
+                scene->cubeColors[FACE_IDX_TOP][8] = tempColors[FACE_IDX_LEFT][8];
+            } else {
+                // Move top face (bottom row) to left
+                scene->cubeColors[FACE_IDX_LEFT][2] = tempColors[FACE_IDX_TOP][6];
+                scene->cubeColors[FACE_IDX_LEFT][5] = tempColors[FACE_IDX_TOP][7];
+                scene->cubeColors[FACE_IDX_LEFT][8] = tempColors[FACE_IDX_TOP][8];
+                
+                // Move left face (right column) to bottom
+                scene->cubeColors[FACE_IDX_BOTTOM][0] = tempColors[FACE_IDX_LEFT][2];
+                scene->cubeColors[FACE_IDX_BOTTOM][1] = tempColors[FACE_IDX_LEFT][5];
+                scene->cubeColors[FACE_IDX_BOTTOM][2] = tempColors[FACE_IDX_LEFT][8];
+                
+                // Move bottom face (top row) to right
+                scene->cubeColors[FACE_IDX_RIGHT][6] = tempColors[FACE_IDX_BOTTOM][0];
+                scene->cubeColors[FACE_IDX_RIGHT][3] = tempColors[FACE_IDX_BOTTOM][1];
+                scene->cubeColors[FACE_IDX_RIGHT][0] = tempColors[FACE_IDX_BOTTOM][2];
+                
+                // Move right face (left column) to top
+                scene->cubeColors[FACE_IDX_TOP][6] = tempColors[FACE_IDX_RIGHT][0];
+                scene->cubeColors[FACE_IDX_TOP][7] = tempColors[FACE_IDX_RIGHT][3];
+                scene->cubeColors[FACE_IDX_TOP][8] = tempColors[FACE_IDX_RIGHT][6];
+            }
+            break;
+            
+        case FACE_IDX_BACK:
+            if (direction == ROTATE_CLOCKWISE) {
+                // Move top face (top row) to left
+                scene->cubeColors[FACE_IDX_LEFT][0] = tempColors[FACE_IDX_TOP][0];
+                scene->cubeColors[FACE_IDX_LEFT][3] = tempColors[FACE_IDX_TOP][1];
+                scene->cubeColors[FACE_IDX_LEFT][6] = tempColors[FACE_IDX_TOP][2];
+                
+                // Move left face (left column) to bottom
+                scene->cubeColors[FACE_IDX_BOTTOM][8] = tempColors[FACE_IDX_LEFT][0];
+                scene->cubeColors[FACE_IDX_BOTTOM][7] = tempColors[FACE_IDX_LEFT][3];
+                scene->cubeColors[FACE_IDX_BOTTOM][6] = tempColors[FACE_IDX_LEFT][6];
+                
+                // Move bottom face (bottom row) to right
+                scene->cubeColors[FACE_IDX_RIGHT][2] = tempColors[FACE_IDX_BOTTOM][8];
+                scene->cubeColors[FACE_IDX_RIGHT][5] = tempColors[FACE_IDX_BOTTOM][7];
+                scene->cubeColors[FACE_IDX_RIGHT][8] = tempColors[FACE_IDX_BOTTOM][6];
+                
+                // Move right face (right column) to top
+                scene->cubeColors[FACE_IDX_TOP][0] = tempColors[FACE_IDX_RIGHT][8];
+                scene->cubeColors[FACE_IDX_TOP][1] = tempColors[FACE_IDX_RIGHT][5];
+                scene->cubeColors[FACE_IDX_TOP][2] = tempColors[FACE_IDX_RIGHT][2];
+            } else {
+                // Move top face (top row) to right
+                scene->cubeColors[FACE_IDX_RIGHT][8] = tempColors[FACE_IDX_TOP][0];
+                scene->cubeColors[FACE_IDX_RIGHT][5] = tempColors[FACE_IDX_TOP][1];
+                scene->cubeColors[FACE_IDX_RIGHT][2] = tempColors[FACE_IDX_TOP][2];
+                
+                // Move right face (right column) to bottom
+                scene->cubeColors[FACE_IDX_BOTTOM][6] = tempColors[FACE_IDX_RIGHT][8];
+                scene->cubeColors[FACE_IDX_BOTTOM][7] = tempColors[FACE_IDX_RIGHT][5];
+                scene->cubeColors[FACE_IDX_BOTTOM][8] = tempColors[FACE_IDX_RIGHT][2];
+                
+                // Move bottom face (bottom row) to left
+                scene->cubeColors[FACE_IDX_LEFT][6] = tempColors[FACE_IDX_BOTTOM][6];
+                scene->cubeColors[FACE_IDX_LEFT][3] = tempColors[FACE_IDX_BOTTOM][7];
+                scene->cubeColors[FACE_IDX_LEFT][0] = tempColors[FACE_IDX_BOTTOM][8];
+                
+                // Move left face (left column) to top
+                scene->cubeColors[FACE_IDX_TOP][0] = tempColors[FACE_IDX_LEFT][0];
+                scene->cubeColors[FACE_IDX_TOP][1] = tempColors[FACE_IDX_LEFT][3];
+                scene->cubeColors[FACE_IDX_TOP][2] = tempColors[FACE_IDX_LEFT][6];
+            }
+            break;
+            
+        case FACE_IDX_LEFT:
+            if (direction == ROTATE_CLOCKWISE) {
+                // Move top face (left column) to back
+                scene->cubeColors[FACE_IDX_BACK][8] = tempColors[FACE_IDX_TOP][0];
+                scene->cubeColors[FACE_IDX_BACK][5] = tempColors[FACE_IDX_TOP][3];
+                scene->cubeColors[FACE_IDX_BACK][2] = tempColors[FACE_IDX_TOP][6];
+                
+                // Move back face (right column) to bottom
+                scene->cubeColors[FACE_IDX_BOTTOM][0] = tempColors[FACE_IDX_BACK][8];
+                scene->cubeColors[FACE_IDX_BOTTOM][3] = tempColors[FACE_IDX_BACK][5];
+                scene->cubeColors[FACE_IDX_BOTTOM][6] = tempColors[FACE_IDX_BACK][2];
+                
+                // Move bottom face (left column) to front
+                scene->cubeColors[FACE_IDX_FRONT][0] = tempColors[FACE_IDX_BOTTOM][0];
+                scene->cubeColors[FACE_IDX_FRONT][3] = tempColors[FACE_IDX_BOTTOM][3];
+                scene->cubeColors[FACE_IDX_FRONT][6] = tempColors[FACE_IDX_BOTTOM][6];
+                
+                // Move front face (left column) to top
+                scene->cubeColors[FACE_IDX_TOP][0] = tempColors[FACE_IDX_FRONT][0];
+                scene->cubeColors[FACE_IDX_TOP][3] = tempColors[FACE_IDX_FRONT][3];
+                scene->cubeColors[FACE_IDX_TOP][6] = tempColors[FACE_IDX_FRONT][6];
+            } else {
+                // Move top face (left column) to front
+                scene->cubeColors[FACE_IDX_FRONT][0] = tempColors[FACE_IDX_TOP][0];
+                scene->cubeColors[FACE_IDX_FRONT][3] = tempColors[FACE_IDX_TOP][3];
+                scene->cubeColors[FACE_IDX_FRONT][6] = tempColors[FACE_IDX_TOP][6];
+                
+                // Move front face (left column) to bottom
+                scene->cubeColors[FACE_IDX_BOTTOM][0] = tempColors[FACE_IDX_FRONT][0];
+                scene->cubeColors[FACE_IDX_BOTTOM][3] = tempColors[FACE_IDX_FRONT][3];
+                scene->cubeColors[FACE_IDX_BOTTOM][6] = tempColors[FACE_IDX_FRONT][6];
+                
+                // Move bottom face (left column) to back
+                scene->cubeColors[FACE_IDX_BACK][8] = tempColors[FACE_IDX_BOTTOM][0];
+                scene->cubeColors[FACE_IDX_BACK][5] = tempColors[FACE_IDX_BOTTOM][3];
+                scene->cubeColors[FACE_IDX_BACK][2] = tempColors[FACE_IDX_BOTTOM][6];
+                
+                // Move back face (right column) to top
+                scene->cubeColors[FACE_IDX_TOP][0] = tempColors[FACE_IDX_BACK][8];
+                scene->cubeColors[FACE_IDX_TOP][3] = tempColors[FACE_IDX_BACK][5];
+                scene->cubeColors[FACE_IDX_TOP][6] = tempColors[FACE_IDX_BACK][2];
+            }
+            break;
+            
+        case FACE_IDX_RIGHT:
+            if (direction == ROTATE_CLOCKWISE) {
+                // Move top face (right column) to front
+                scene->cubeColors[FACE_IDX_FRONT][2] = tempColors[FACE_IDX_TOP][2];
+                scene->cubeColors[FACE_IDX_FRONT][5] = tempColors[FACE_IDX_TOP][5];
+                scene->cubeColors[FACE_IDX_FRONT][8] = tempColors[FACE_IDX_TOP][8];
+                
+                // Move front face (right column) to bottom
+                scene->cubeColors[FACE_IDX_BOTTOM][2] = tempColors[FACE_IDX_FRONT][2];
+                scene->cubeColors[FACE_IDX_BOTTOM][5] = tempColors[FACE_IDX_FRONT][5];
+                scene->cubeColors[FACE_IDX_BOTTOM][8] = tempColors[FACE_IDX_FRONT][8];
+                
+                // Move bottom face (right column) to back
+                scene->cubeColors[FACE_IDX_BACK][6] = tempColors[FACE_IDX_BOTTOM][2];
+                scene->cubeColors[FACE_IDX_BACK][3] = tempColors[FACE_IDX_BOTTOM][5];
+                scene->cubeColors[FACE_IDX_BACK][0] = tempColors[FACE_IDX_BOTTOM][8];
+                
+                // Move back face (left column) to top
+                scene->cubeColors[FACE_IDX_TOP][2] = tempColors[FACE_IDX_BACK][6];
+                scene->cubeColors[FACE_IDX_TOP][5] = tempColors[FACE_IDX_BACK][3];
+                scene->cubeColors[FACE_IDX_TOP][8] = tempColors[FACE_IDX_BACK][0];
+            } else {
+                // Move top face (right column) to back
+                scene->cubeColors[FACE_IDX_BACK][6] = tempColors[FACE_IDX_TOP][2];
+                scene->cubeColors[FACE_IDX_BACK][3] = tempColors[FACE_IDX_TOP][5];
+                scene->cubeColors[FACE_IDX_BACK][0] = tempColors[FACE_IDX_TOP][8];
+                
+                // Move back face (left column) to bottom
+                scene->cubeColors[FACE_IDX_BOTTOM][8] = tempColors[FACE_IDX_BACK][0];
+                scene->cubeColors[FACE_IDX_BOTTOM][5] = tempColors[FACE_IDX_BACK][3];
+                scene->cubeColors[FACE_IDX_BOTTOM][2] = tempColors[FACE_IDX_BACK][6];
+                
+                // Move bottom face (right column) to front
+                scene->cubeColors[FACE_IDX_FRONT][2] = tempColors[FACE_IDX_BOTTOM][2];
+                scene->cubeColors[FACE_IDX_FRONT][5] = tempColors[FACE_IDX_BOTTOM][5];
+                scene->cubeColors[FACE_IDX_FRONT][8] = tempColors[FACE_IDX_BOTTOM][8];
+                
+                // Move front face (right column) to top
+                scene->cubeColors[FACE_IDX_TOP][2] = tempColors[FACE_IDX_FRONT][2];
+                scene->cubeColors[FACE_IDX_TOP][5] = tempColors[FACE_IDX_FRONT][5];
+                scene->cubeColors[FACE_IDX_TOP][8] = tempColors[FACE_IDX_FRONT][8];
+            }
+            break;
+    }
+}
+
+// The main function to rotate a face
+void scene_rotate_face(Scene* scene, FaceIndex face, RotationDirection direction) {
+    if (!scene->isRubiksCube) {
+        return;
+    }
+    
+    // Step 1: Rotate the colors on the faces
+    rotate_face_colors(scene, face, direction);
+    
+    // Step 2: Rebuild the cubes to apply the new colors
+    // First, free the existing cubes
+    for (int i = 0; i < scene->numCubes; i++) {
+        mesh_destroy(&scene->cubes[i]);
+    }
+    
+    // Now recreate cubes with the updated colors
+    float cubeSize = 0.3f;
+    float gap = 0.02f;
+    float step = cubeSize + gap;
+    float offset = -step;
+    
+    int index = 0;
+    for (int x = 0; x < 3; x++) {
+        for (int y = 0; y < 3; y++) {
+            for (int z = 0; z < 3; z++) {
+                // Determine which faces should be visible based on position
+                unsigned int visibleFaces = 0;
+                
+                // Front face is visible for cubes at z=2 (front layer)
+                if (z == 2) visibleFaces |= FACE_FRONT;
+                
+                // Back face is visible for cubes at z=0 (back layer)
+                if (z == 0) visibleFaces |= FACE_BACK;
+                
+                // Top face is visible for cubes at y=2 (top layer)
+                if (y == 2) visibleFaces |= FACE_TOP;
+                
+                // Bottom face is visible for cubes at y=0 (bottom layer)
+                if (y == 0) visibleFaces |= FACE_BOTTOM;
+                
+                // Right face is visible for cubes at x=2 (right layer)
+                if (x == 2) visibleFaces |= FACE_RIGHT;
+                
+                // Left face is visible for cubes at x=0 (left layer)
+                if (x == 0) visibleFaces |= FACE_LEFT;
+                
+                // Create a cube with custom colors for visible faces
+                scene->cubes[index] = create_custom_colored_cube(visibleFaces, scene, x, y, z);
+                
+                // Store position for this cube
+                scene->positions[index][0] = offset + x * step;
+                scene->positions[index][1] = offset + y * step;
+                scene->positions[index][2] = offset + z * step;
+                
+                index++;
+            }
+        }
+    }
+}
+
+// Wrapper functions for specific face rotations
+void scene_rotate_top(Scene* scene, RotationDirection direction) {
+    scene_start_rotation(scene, FACE_IDX_TOP, direction);
+}
+
+void scene_rotate_bottom(Scene* scene, RotationDirection direction) {
+    scene_start_rotation(scene, FACE_IDX_BOTTOM, direction);
+}
+
+void scene_rotate_left(Scene* scene, RotationDirection direction) {
+    scene_start_rotation(scene, FACE_IDX_LEFT, direction);
+}
+
+void scene_rotate_right(Scene* scene, RotationDirection direction) {
+    scene_start_rotation(scene, FACE_IDX_RIGHT, direction);
+}
+
+void scene_rotate_front(Scene* scene, RotationDirection direction) {
+    scene_start_rotation(scene, FACE_IDX_FRONT, direction);
+}
+
+void scene_rotate_back(Scene* scene, RotationDirection direction) {
+    scene_start_rotation(scene, FACE_IDX_BACK, direction);
 } 

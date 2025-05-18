@@ -1,6 +1,8 @@
 #define _USE_MATH_DEFINES
 
 #include "window.h"
+#include "application.h"
+#include "../scene/scene.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -42,6 +44,56 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
         if (key == GLFW_KEY_0 || key == GLFW_KEY_KP_0) {
             camera_set_fov(camera, 45.0f);
             printf("FOV reset to 45.0 degrees\n");
+        }
+        
+        // Rubik's Cube Controls
+        // Only handle these if we have a valid application reference
+        struct Application* app = window->app;
+        if (app && app->scene.isRubiksCube && !scene_is_rotating(&app->scene)) {
+            // Check for rotation keys only if no rotation is currently in progress
+            int direction = (mods & GLFW_MOD_SHIFT) ? -1 : 1; // -1 for counter-clockwise, 1 for clockwise
+            
+            // Top face rotation
+            if (key == GLFW_KEY_U) {
+                scene_rotate_top(&app->scene, direction);
+                printf("Rotating top face %s\n", 
+                       direction == 1 ? "clockwise" : "counter-clockwise");
+            }
+            
+            // Bottom face rotation
+            if (key == GLFW_KEY_D) {
+                scene_rotate_bottom(&app->scene, direction);
+                printf("Rotating bottom face %s\n", 
+                       direction == 1 ? "clockwise" : "counter-clockwise");
+            }
+            
+            // Front face rotation
+            if (key == GLFW_KEY_F) {
+                scene_rotate_front(&app->scene, direction);
+                printf("Rotating front face %s\n", 
+                       direction == 1 ? "clockwise" : "counter-clockwise");
+            }
+            
+            // Back face rotation
+            if (key == GLFW_KEY_B) {
+                scene_rotate_back(&app->scene, direction);
+                printf("Rotating back face %s\n", 
+                       direction == 1 ? "clockwise" : "counter-clockwise");
+            }
+            
+            // Left face rotation
+            if (key == GLFW_KEY_L) {
+                scene_rotate_left(&app->scene, direction);
+                printf("Rotating left face %s\n", 
+                       direction == 1 ? "clockwise" : "counter-clockwise");
+            }
+            
+            // Right face rotation
+            if (key == GLFW_KEY_R) {
+                scene_rotate_right(&app->scene, direction);
+                printf("Rotating right face %s\n", 
+                       direction == 1 ? "clockwise" : "counter-clockwise");
+            }
         }
     }
 }
