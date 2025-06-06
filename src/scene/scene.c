@@ -196,6 +196,7 @@ bool scene_init_rubiks(Scene* scene) {
     scene->rotationTarget = 0.0f;
     scene->rotatingLayer = 0;
     scene->rotationAxis = 'y';
+    scene->speedMultiplier = 1.0f; // Normal speed by default
     
     // Initialize move queue
     scene_init_move_queue(scene);
@@ -325,8 +326,9 @@ static void update_rotation(Scene* scene, float deltaTime) {
         return;
     }
     
-    // Rotation speed (degrees per second)
-    float rotationSpeed = 270.0f; // 270 degrees per second (1/3 second per rotation)
+    // Base rotation speed (degrees per second)
+    float baseRotationSpeed = 270.0f; // 270 degrees per second (1/3 second per rotation)
+    float rotationSpeed = baseRotationSpeed * scene->speedMultiplier;
     
     // Update rotation angle
     scene->rotationAngle += rotationSpeed * deltaTime;
@@ -1182,6 +1184,7 @@ void scene_init_move_queue(Scene* scene) {
     scene->moveQueueCapacity = 0;
     scene->currentMoveIndex = 0;
     scene->processingSequence = false;
+    scene->originalSpeedBeforeSequence = 1.0f;
     
     // Initialize browse mode
     scene->browseMode = false;
@@ -1256,16 +1259,15 @@ static bool parse_move_string(const char* moveStr, FaceIndex* face, RotationDire
         default: return false;
     }
     
-    // Parse modifiers (prime and number)
+    // Parse modifiers (prime and 2 only, no more 3)
     for (size_t i = 1; i < strlen(moveStr); i++) {
         char modifier = moveStr[i];
         if (modifier == '\'' || modifier == '\'') {
             *direction = ROTATE_COUNTERCLOCKWISE;
         } else if (modifier == '2') {
             *repetitions = 2;
-        } else if (modifier == '3') {
-            *repetitions = 3;
         }
+        // Removed support for '3' modifier
     }
     
     return true;
@@ -1300,18 +1302,13 @@ void scene_process_move_queue(Scene* scene) {
             printf("Executing move %d/%d: %s\n", 
                    scene->currentMoveIndex + 1, scene->moveQueueSize, moveStr);
             
-            // For 3 repetitions, it's equivalent to 1 counter-clockwise
-            if (repetitions == 3) {
-                direction = ROTATE_COUNTERCLOCKWISE;
-                repetitions = 1;
-            }
-            
             scene_start_rotation(scene, face, direction, repetitions);
             scene->currentMoveIndex++;
             
             // Check if sequence is complete
             if (scene->currentMoveIndex >= scene->moveQueueSize) {
-                printf("Move sequence completed!\n");
+                printf("Move sequence completed! Restoring speed to %.1fx\n", scene->originalSpeedBeforeSequence);
+                scene_set_speed_multiplier(scene, scene->originalSpeedBeforeSequence);
                 scene->processingSequence = false;
                 scene->currentMoveIndex = 0;
                 scene->moveQueueSize = 0; // Clear the queue
@@ -1339,6 +1336,9 @@ void apply_move_sequence(Scene* scene, char** moveSequence) {
         return;
     }
     
+    // Store original speed before sequence (current speed multiplier)
+    scene->originalSpeedBeforeSequence = scene->speedMultiplier;
+    
     // Clear any existing queue
     scene_destroy_move_queue(scene);
     scene_init_move_queue(scene);
@@ -1354,7 +1354,7 @@ void apply_move_sequence(Scene* scene, char** moveSequence) {
         return;
     }
     
-    printf("Starting move sequence with %d moves: ", moveCount);
+    printf("Starting move sequence with %d moves at %.1fx speed: ", moveCount, scene->speedMultiplier);
     for (int i = 0; i < moveCount; i++) {
         scene_add_move_to_queue(scene, moveSequence[i]);
         printf("%s ", moveSequence[i]);
@@ -1419,12 +1419,6 @@ void scene_browse_next(Scene* scene) {
         printf("Applying move [%d/%d]: %s\n", 
                scene->browseIndex + 1, scene->moveQueueSize, currentMoveStr);
         
-        // For 3 repetitions, it's equivalent to 1 counter-clockwise
-        if (repetitions == 3) {
-            direction = ROTATE_COUNTERCLOCKWISE;
-            repetitions = 1;
-        }
-        
         scene_start_rotation(scene, face, direction, repetitions);
     }
     
@@ -1463,12 +1457,6 @@ void scene_browse_previous(Scene* scene) {
         printf("Undoing move [%d/%d]: %s (applying inverse)\n", 
                scene->browseIndex + 1, scene->moveQueueSize, moveToUndo);
         
-        // For 3 repetitions, it's equivalent to 1 counter-clockwise
-        if (repetitions == 3) {
-            direction = ROTATE_COUNTERCLOCKWISE;
-            repetitions = 1;
-        }
-        
         scene_start_rotation(scene, face, direction, repetitions);
     }
     
@@ -1493,14 +1481,21 @@ void scene_execute_current_browse_move(Scene* scene) {
     int repetitions;
     
     if (parse_move_string(moveStr, &face, &direction, &repetitions)) {
-        // For 3 repetitions, it's equivalent to 1 counter-clockwise
-        if (repetitions == 3) {
-            direction = ROTATE_COUNTERCLOCKWISE;
-            repetitions = 1;
-        }
-        
         scene_start_rotation(scene, face, direction, repetitions);
     } else {
         fprintf(stderr, "Invalid move string in browse mode: %s\n", moveStr);
     }
+}
+
+// Animation speed control functions
+
+void scene_set_speed_multiplier(Scene* scene, float multiplier) {
+    if (scene && multiplier > 0.0f) {
+        scene->speedMultiplier = multiplier;
+        printf("Animation speed set to %.1fx\n", multiplier);
+    }
+}
+
+float scene_get_speed_multiplier(Scene* scene) {
+    return scene ? scene->speedMultiplier : 1.0f;
 }

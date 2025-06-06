@@ -63,6 +63,7 @@ struct Scene {
     int rotatingLayer;     // 0=bottom/left/back, 1=middle, 2=top/right/front
     char rotationAxis;     // 'x', 'y', or 'z'
     int rotationRepetitions; // Number of 90-degree state changes needed
+    float speedMultiplier;   // Speed multiplier for animations (1.0 = normal, higher = faster)
     
     // Move sequence queue
     char** moveQueue;      // Array of move strings
@@ -70,6 +71,7 @@ struct Scene {
     int moveQueueCapacity; // Maximum capacity of queue
     int currentMoveIndex;  // Index of currently executing move
     bool processingSequence; // Whether we're currently processing a sequence
+    float originalSpeedBeforeSequence; // Store original speed to restore after sequence
     
     // Browse mode for move queue
     bool browseMode;       // Whether we're in browse mode
@@ -124,5 +126,9 @@ void scene_browse_next(Scene* scene);
 void scene_browse_previous(Scene* scene);
 bool scene_is_in_browse_mode(Scene* scene);
 void scene_execute_current_browse_move(Scene* scene);
+
+// Animation speed control
+void scene_set_speed_multiplier(Scene* scene, float multiplier);
+float scene_get_speed_multiplier(Scene* scene);
 
 #endif /* SCENE_H */
