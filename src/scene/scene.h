@@ -70,6 +70,11 @@ struct Scene {
     int moveQueueCapacity; // Maximum capacity of queue
     int currentMoveIndex;  // Index of currently executing move
     bool processingSequence; // Whether we're currently processing a sequence
+    
+    // Browse mode for move queue
+    bool browseMode;       // Whether we're in browse mode
+    int browseIndex;       // Current position in browse mode
+    bool browseNeedsUpdate; // Flag to indicate visual update needed
 };
 
 bool scene_init(Scene* scene);
@@ -111,5 +116,13 @@ void scene_destroy_move_queue(Scene* scene);
 void scene_add_move_to_queue(Scene* scene, const char* move);
 void scene_process_move_queue(Scene* scene);
 bool scene_is_processing_sequence(Scene* scene);
+
+// Browse mode functions
+void scene_enter_browse_mode(Scene* scene);
+void scene_exit_browse_mode(Scene* scene);
+void scene_browse_next(Scene* scene);
+void scene_browse_previous(Scene* scene);
+bool scene_is_in_browse_mode(Scene* scene);
+void scene_execute_current_browse_move(Scene* scene);
 
 #endif /* SCENE_H */

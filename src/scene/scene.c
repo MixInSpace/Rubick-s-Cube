@@ -347,10 +347,13 @@ void scene_update(Scene* scene, float deltaTime) {
     // Update rotation animation if in progress
     update_rotation(scene, deltaTime);
     
-    // Process move queue if not currently rotating
-    if (scene->isRubiksCube && !scene->isRotating) {
+    // Process move queue if not currently rotating and not in browse mode
+    if (scene->isRubiksCube && !scene->isRotating && !scene->browseMode) {
         scene_process_move_queue(scene);
     }
+    
+    // Browse mode now handles moves directly in navigation functions
+    // No automatic execution needed here
 }
 
 void scene_render(Scene* scene, Window* window) {
@@ -1179,6 +1182,11 @@ void scene_init_move_queue(Scene* scene) {
     scene->moveQueueCapacity = 0;
     scene->currentMoveIndex = 0;
     scene->processingSequence = false;
+    
+    // Initialize browse mode
+    scene->browseMode = false;
+    scene->browseIndex = 0;
+    scene->browseNeedsUpdate = false;
 }
 
 void scene_destroy_move_queue(Scene* scene) {
@@ -1196,6 +1204,11 @@ void scene_destroy_move_queue(Scene* scene) {
     scene->moveQueueCapacity = 0;
     scene->currentMoveIndex = 0;
     scene->processingSequence = false;
+    
+    // Reset browse mode
+    scene->browseMode = false;
+    scene->browseIndex = 0;
+    scene->browseNeedsUpdate = false;
 }
 
 void scene_add_move_to_queue(Scene* scene, const char* move) {
@@ -1254,6 +1267,19 @@ static bool parse_move_string(const char* moveStr, FaceIndex* face, RotationDire
             *repetitions = 3;
         }
     }
+    
+    return true;
+}
+
+// Helper function to get the inverse of a move (for reverse browsing)
+static bool get_inverse_move(const char* moveStr, FaceIndex* face, RotationDirection* direction, int* repetitions) {
+    if (!parse_move_string(moveStr, face, direction, repetitions)) {
+        return false;
+    }
+    
+    // For all moves (single, double, and triple), flip the direction for visual feedback
+    // This ensures the undo animation goes in the opposite direction
+    *direction = (*direction == ROTATE_CLOCKWISE) ? ROTATE_COUNTERCLOCKWISE : ROTATE_CLOCKWISE;
     
     return true;
 }
@@ -1338,4 +1364,143 @@ void apply_move_sequence(Scene* scene, char** moveSequence) {
     // Start processing the sequence
     scene->processingSequence = true;
     scene->currentMoveIndex = 0;
+}
+
+// Browse mode functions
+
+void scene_enter_browse_mode(Scene* scene) {
+    if (!scene || !scene->isRubiksCube || scene->moveQueueSize == 0) {
+        printf("Cannot enter browse mode: no moves in queue\n");
+        return;
+    }
+    
+    // Stop any current processing
+    scene->processingSequence = false;
+    
+    // Enter browse mode
+    scene->browseMode = true;
+    scene->browseIndex = 0;
+    scene->browseNeedsUpdate = false; // Don't need this anymore
+    
+    printf("Entered browse mode with %d moves. Use arrow keys to navigate, C to exit.\n", scene->moveQueueSize);
+    printf("Ready to apply move [%d/%d]: %s\n", scene->browseIndex + 1, scene->moveQueueSize, 
+           scene->moveQueue[scene->browseIndex]);
+}
+
+void scene_exit_browse_mode(Scene* scene) {
+    if (!scene || !scene->browseMode) {
+        return;
+    }
+    
+    printf("Exiting browse mode\n");
+    scene->browseMode = false;
+    scene->browseIndex = 0;
+    scene->browseNeedsUpdate = false;
+}
+
+void scene_browse_next(Scene* scene) {
+    if (!scene || !scene->browseMode || scene->moveQueueSize == 0) {
+        return;
+    }
+    
+    // Check if we're at the end
+    if (scene->browseIndex >= scene->moveQueueSize) {
+        printf("Already at the end of sequence\n");
+        return;
+    }
+    
+    // Apply the current move
+    const char* currentMoveStr = scene->moveQueue[scene->browseIndex];
+    FaceIndex face;
+    RotationDirection direction;
+    int repetitions;
+    
+    if (parse_move_string(currentMoveStr, &face, &direction, &repetitions)) {
+        printf("Applying move [%d/%d]: %s\n", 
+               scene->browseIndex + 1, scene->moveQueueSize, currentMoveStr);
+        
+        // For 3 repetitions, it's equivalent to 1 counter-clockwise
+        if (repetitions == 3) {
+            direction = ROTATE_COUNTERCLOCKWISE;
+            repetitions = 1;
+        }
+        
+        scene_start_rotation(scene, face, direction, repetitions);
+    }
+    
+    // Move to next index
+    scene->browseIndex++;
+    
+    if (scene->browseIndex < scene->moveQueueSize) {
+        printf("Now at move [%d/%d]: %s\n", scene->browseIndex + 1, scene->moveQueueSize, 
+               scene->moveQueue[scene->browseIndex]);
+    } else {
+        printf("Reached the end of sequence (all moves applied)\n");
+    }
+}
+
+void scene_browse_previous(Scene* scene) {
+    if (!scene || !scene->browseMode || scene->moveQueueSize == 0) {
+        return;
+    }
+    
+    // Check if we're at the beginning
+    if (scene->browseIndex <= 0) {
+        printf("Already at the beginning of sequence - no moves to undo\n");
+        return;
+    }
+    
+    // Move to previous index first
+    scene->browseIndex--;
+    
+    // Now undo the move at this position (the one that was previously applied)
+    const char* moveToUndo = scene->moveQueue[scene->browseIndex];
+    FaceIndex face;
+    RotationDirection direction;
+    int repetitions;
+    
+    if (get_inverse_move(moveToUndo, &face, &direction, &repetitions)) {
+        printf("Undoing move [%d/%d]: %s (applying inverse)\n", 
+               scene->browseIndex + 1, scene->moveQueueSize, moveToUndo);
+        
+        // For 3 repetitions, it's equivalent to 1 counter-clockwise
+        if (repetitions == 3) {
+            direction = ROTATE_COUNTERCLOCKWISE;
+            repetitions = 1;
+        }
+        
+        scene_start_rotation(scene, face, direction, repetitions);
+    }
+    
+    printf("Now at move [%d/%d]: %s\n", scene->browseIndex + 1, scene->moveQueueSize, 
+           scene->moveQueue[scene->browseIndex]);
+}
+
+bool scene_is_in_browse_mode(Scene* scene) {
+    return scene ? scene->browseMode : false;
+}
+
+void scene_execute_current_browse_move(Scene* scene) {
+    if (!scene || !scene->browseMode || scene->browseIndex >= scene->moveQueueSize) {
+        return;
+    }
+    
+    // This function is kept for potential future use
+    // Currently, moves are executed directly in browse_next/browse_previous
+    const char* moveStr = scene->moveQueue[scene->browseIndex];
+    FaceIndex face;
+    RotationDirection direction;
+    int repetitions;
+    
+    if (parse_move_string(moveStr, &face, &direction, &repetitions)) {
+        // For 3 repetitions, it's equivalent to 1 counter-clockwise
+        if (repetitions == 3) {
+            direction = ROTATE_COUNTERCLOCKWISE;
+            repetitions = 1;
+        }
+        
+        scene_start_rotation(scene, face, direction, repetitions);
+    } else {
+        fprintf(stderr, "Invalid move string in browse mode: %s\n", moveStr);
+    }
 }

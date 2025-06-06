@@ -50,6 +50,19 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
         // Only handle these if we have a valid application reference
         struct Application* app = window->app;
         if (app && app->scene.isRubiksCube && !scene_is_rotating(&app->scene)) {
+            // Check if we're in browse mode
+            if (scene_is_in_browse_mode(&app->scene)) {
+                // Browse mode navigation
+                if (key == GLFW_KEY_RIGHT || key == GLFW_KEY_DOWN) {
+                    scene_browse_next(&app->scene);
+                } else if (key == GLFW_KEY_LEFT || key == GLFW_KEY_UP) {
+                    scene_browse_previous(&app->scene);
+                } else if (key == GLFW_KEY_C) {
+                    scene_exit_browse_mode(&app->scene);
+                }
+                return; // Don't process other keys in browse mode
+            }
+            
             // Check for rotation keys only if no rotation is currently in progress
             int direction = (mods & GLFW_MOD_SHIFT) ? -1 : 1; // -1 for counter-clockwise, 1 for clockwise
             
@@ -74,7 +87,6 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
                        direction == 1 ? "clockwise" : "counter-clockwise");
             }
             
-            // Back face rotation (B key - Back)
             if (key == GLFW_KEY_B) {
                 scene_start_rotation(&app->scene, FACE_IDX_BACK, direction, 1);
                 printf("Rotating back face %s\n", 
@@ -98,12 +110,48 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
             if (key == GLFW_KEY_1) { 
                 //B F2 D' R2 F D B' F D' U F' D' L2 F D2 U'
                 char* moveSequence[] = {"B", "F2", "D'", "R2", "F", "D", "B'", "F", "D'", "U", "F'", "D'", "L2", "F", "D2", "U'", NULL};
-                apply_move_sequence(&app->scene, moveSequence);
+                
+                if (mods & GLFW_MOD_SHIFT) {
+                    // Shift+1: Load sequence into browse mode
+                    scene_destroy_move_queue(&app->scene);
+                    scene_init_move_queue(&app->scene);
+                    
+                    // Add moves to queue
+                    int i = 0;
+                    while (moveSequence[i] != NULL) {
+                        scene_add_move_to_queue(&app->scene, moveSequence[i]);
+                        i++;
+                    }
+                    
+                    printf("Loaded sequence 1 into browse mode (%d moves)\n", i);
+                    scene_enter_browse_mode(&app->scene);
+                } else {
+                    // Regular 1: Execute sequence
+                    apply_move_sequence(&app->scene, moveSequence);
+                }
             }
             if (key == GLFW_KEY_2) { 
                 //U2 F2 R2 U' L2 D B R' B R' B R' D' L2 U'
                 char* moveSequence[] = {"U2", "F2", "R2", "U'", "L2", "D", "B", "R'", "B", "R'", "B", "R'", "D'", "L2", "U'", NULL};
-                apply_move_sequence(&app->scene, moveSequence);
+                
+                if (mods & GLFW_MOD_SHIFT) {
+                    // Shift+2: Load sequence into browse mode
+                    scene_destroy_move_queue(&app->scene);
+                    scene_init_move_queue(&app->scene);
+                    
+                    // Add moves to queue
+                    int i = 0;
+                    while (moveSequence[i] != NULL) {
+                        scene_add_move_to_queue(&app->scene, moveSequence[i]);
+                        i++;
+                    }
+                    
+                    printf("Loaded sequence 2 into browse mode (%d moves)\n", i);
+                    scene_enter_browse_mode(&app->scene);
+                } else {
+                    // Regular 2: Execute sequence
+                    apply_move_sequence(&app->scene, moveSequence);
+                }
             }
         }
     }
