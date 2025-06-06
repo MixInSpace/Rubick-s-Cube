@@ -27,12 +27,7 @@ static EmbeddedTextureData embedded_textures[TEXTURE_COUNT];
 // For debugging: texture file paths (not used for loading)
 static const char* texture_names[TEXTURE_COUNT] = {
     "stickerCenter.png",
-    "stickerCorner.png",
-    "stickerEdgeU.png",
-    "stickerEdgeD.png",
-    "stickerEdgeL.png",
-    "stickerEdgeR.png",
-    "stickerBlank.png"
+    "sticker.png"
 };
 
 // Initialize the embedded textures array
@@ -40,23 +35,8 @@ static void init_embedded_textures(void) {
     embedded_textures[TEXTURE_STICKER_CENTER].data = stickerCenter_png;
     embedded_textures[TEXTURE_STICKER_CENTER].size = stickerCenter_png_size;
     
-    embedded_textures[TEXTURE_STICKER_CORNER].data = stickerCorner_png;
-    embedded_textures[TEXTURE_STICKER_CORNER].size = stickerCorner_png_size;
-    
-    embedded_textures[TEXTURE_STICKER_EDGE_U].data = stickerEdgeU_png;
-    embedded_textures[TEXTURE_STICKER_EDGE_U].size = stickerEdgeU_png_size;
-    
-    embedded_textures[TEXTURE_STICKER_EDGE_D].data = stickerEdgeD_png;
-    embedded_textures[TEXTURE_STICKER_EDGE_D].size = stickerEdgeD_png_size;
-    
-    embedded_textures[TEXTURE_STICKER_EDGE_L].data = stickerEdgeL_png;
-    embedded_textures[TEXTURE_STICKER_EDGE_L].size = stickerEdgeL_png_size;
-    
-    embedded_textures[TEXTURE_STICKER_EDGE_R].data = stickerEdgeR_png;
-    embedded_textures[TEXTURE_STICKER_EDGE_R].size = stickerEdgeR_png_size;
-    
-    embedded_textures[TEXTURE_STICKER_BLANK].data = stickerBlank_png;
-    embedded_textures[TEXTURE_STICKER_BLANK].size = stickerBlank_png_size;
+    embedded_textures[TEXTURE_STICKER].data = sticker_png;
+    embedded_textures[TEXTURE_STICKER].size = sticker_png_size;
 }
 
 // Load a single texture from embedded data

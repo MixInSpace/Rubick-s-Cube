@@ -55,44 +55,55 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
             
             // Top face rotation (U key - Up)
             if (key == GLFW_KEY_U) {
-                scene_rotate_top(&app->scene, direction);
+                scene_start_rotation(&app->scene, FACE_IDX_TOP, direction, 1);
                 printf("Rotating top face %s\n", 
                        direction == 1 ? "clockwise" : "counter-clockwise");
             }
             
             // Bottom face rotation (D key - Down)
             if (key == GLFW_KEY_D) {
-                scene_rotate_bottom(&app->scene, direction);
+                scene_start_rotation(&app->scene, FACE_IDX_BOTTOM, direction, 1);
                 printf("Rotating bottom face %s\n", 
                        direction == 1 ? "clockwise" : "counter-clockwise");
             }
             
             // Front face rotation (F key - Front)
             if (key == GLFW_KEY_F) {
-                scene_rotate_front(&app->scene, direction);
+                scene_start_rotation(&app->scene, FACE_IDX_FRONT, direction, 1);
                 printf("Rotating front face %s\n", 
                        direction == 1 ? "clockwise" : "counter-clockwise");
             }
             
             // Back face rotation (B key - Back)
             if (key == GLFW_KEY_B) {
-                scene_rotate_back(&app->scene, direction);
+                scene_start_rotation(&app->scene, FACE_IDX_BACK, direction, 1);
                 printf("Rotating back face %s\n", 
                        direction == 1 ? "clockwise" : "counter-clockwise");
             }
             
             // Left face rotation (L key - Left)
             if (key == GLFW_KEY_L) {
-                scene_rotate_left(&app->scene, direction);
+                scene_start_rotation(&app->scene, FACE_IDX_LEFT, direction, 1);
                 printf("Rotating left face %s\n", 
                        direction == 1 ? "clockwise" : "counter-clockwise");
             }
             
             // Right face rotation (R key - Right)
             if (key == GLFW_KEY_R) {
-                scene_rotate_right(&app->scene, direction);
+                scene_start_rotation(&app->scene, FACE_IDX_RIGHT, direction, 1);
                 printf("Rotating right face %s\n", 
                        direction == 1 ? "clockwise" : "counter-clockwise");
+            }
+
+            if (key == GLFW_KEY_1) { 
+                //B F2 D' R2 F D B' F D' U F' D' L2 F D2 U'
+                char* moveSequence[] = {"B", "F2", "D'", "R2", "F", "D", "B'", "F", "D'", "U", "F'", "D'", "L2", "F", "D2", "U'", NULL};
+                apply_move_sequence(&app->scene, moveSequence);
+            }
+            if (key == GLFW_KEY_2) { 
+                //U2 F2 R2 U' L2 D B R' B R' B R' D' L2 U'
+                char* moveSequence[] = {"U2", "F2", "R2", "U'", "L2", "D", "B", "R'", "B", "R'", "B", "R'", "D'", "L2", "U'", NULL};
+                apply_move_sequence(&app->scene, moveSequence);
             }
         }
     }

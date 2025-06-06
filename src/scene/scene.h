@@ -62,6 +62,14 @@ struct Scene {
     RotationDirection rotationDirection;
     int rotatingLayer;     // 0=bottom/left/back, 1=middle, 2=top/right/front
     char rotationAxis;     // 'x', 'y', or 'z'
+    int rotationRepetitions; // Number of 90-degree state changes needed
+    
+    // Move sequence queue
+    char** moveQueue;      // Array of move strings
+    int moveQueueSize;     // Current number of moves in queue
+    int moveQueueCapacity; // Maximum capacity of queue
+    int currentMoveIndex;  // Index of currently executing move
+    bool processingSequence; // Whether we're currently processing a sequence
 };
 
 bool scene_init(Scene* scene);
@@ -72,36 +80,36 @@ void scene_destroy(Scene* scene);
 // Initialize the scene with a Rubik's cube grid
 bool scene_init_rubiks(Scene* scene);
 
-// Set the Rubik's cube state from a string
-// Format: "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB"
-// where:
-// U = top face (white)
-// R = right face (blue)
-// F = front face (red)
-// D = bottom face (yellow)
-// L = left face (green)
-// B = back face (orange)
-// Each face should have 9 characters in reading order (left-to-right, top-to-bottom)
 bool scene_set_cube_state_from_string(Scene* scene, const char* state);
+
+// Get the current Rubik's cube state as a string
+// Returns a dynamically allocated string that must be freed by the caller
+// Format is the same as scene_set_cube_state_from_string
+char* scene_get_cube_state_as_string(Scene* scene);
+
+RGBColor* scene_get_cube_colors(Scene* scene);
 
 // Helper function to create a cube with custom colors based on position and stored colors
 Mesh create_custom_colored_cube(unsigned int visibleFaces, Scene* scene, int x, int y, int z);
 
+void rotate_face_colors(RGBColor (*cubeColors)[9], FaceIndex face, RotationDirection direction);
+
 // Face rotation functions
 void scene_rotate_face(Scene* scene, FaceIndex face, RotationDirection direction);
 
-// Specific face rotations (wrapper functions)
-void scene_rotate_top(Scene* scene, RotationDirection direction);
-void scene_rotate_bottom(Scene* scene, RotationDirection direction);
-void scene_rotate_left(Scene* scene, RotationDirection direction);
-void scene_rotate_right(Scene* scene, RotationDirection direction);
-void scene_rotate_front(Scene* scene, RotationDirection direction);
-void scene_rotate_back(Scene* scene, RotationDirection direction);
-
 // Start a face rotation animation
-void scene_start_rotation(Scene* scene, FaceIndex face, RotationDirection direction);
+void scene_start_rotation(Scene* scene, FaceIndex face, RotationDirection direction, int repetitions);
 
 // Check if rotation is in progress
 bool scene_is_rotating(Scene* scene);
+
+void apply_move_sequence(Scene* scene, char** moveSequence);
+
+// Move sequence management functions
+void scene_init_move_queue(Scene* scene);
+void scene_destroy_move_queue(Scene* scene);
+void scene_add_move_to_queue(Scene* scene, const char* move);
+void scene_process_move_queue(Scene* scene);
+bool scene_is_processing_sequence(Scene* scene);
 
 #endif /* SCENE_H */

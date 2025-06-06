@@ -29,7 +29,7 @@ int main() {
     const char* checkerboard = "WYWRORORYGBGORGBGBGBROROBORYWYWYGBGBGBYWYWYWWYWGBORORO";
     
     // Apply solid colors to verify basic functionality
-    if (!scene_set_cube_state_from_string(&app.scene, checkerboard)) {
+    if (!scene_set_cube_state_from_string(&app.scene, solidColors)) {
         fprintf(stderr, "Failed to set cube state from string\n");
     }
     

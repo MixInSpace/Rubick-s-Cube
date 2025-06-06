@@ -377,18 +377,8 @@ Mesh create_textured_cube_mesh(unsigned int visibleFaces) {
     mesh.drawMode = GL_TRIANGLES;
     mesh.hasTexture = true;
     
-    // Assign appropriate texture based on position
-    if (visibleFaces & FACE_FRONT || visibleFaces & FACE_BACK || 
-        visibleFaces & FACE_LEFT || visibleFaces & FACE_RIGHT) {
-        // Center pieces
-        mesh.textureType = TEXTURE_STICKER_CENTER;
-    } else if (visibleFaces & FACE_TOP || visibleFaces & FACE_BOTTOM) {
-        // Edge pieces
-        mesh.textureType = TEXTURE_STICKER_EDGE_U;
-    } else {
-        // Default
-        mesh.textureType = TEXTURE_STICKER_BLANK;
-    }
+    // Texture will be assigned based on cube type in scene creation
+    mesh.textureType = TEXTURE_STICKER; // Default to regular sticker
     
     // Bind the Vertex Array Object first
     glBindVertexArray(mesh.VAO);
@@ -534,22 +524,11 @@ Mesh* create_textured_rubiks_cube_mesh(float gap) {
                 // Create a textured cube with only the visible faces enabled
                 cubes[index] = create_textured_cube_mesh(visibleFaces);
                 
-                // Select texture type based on cube position
-                if (is_corner_piece(x, y, z)) {
-                    cubes[index].textureType = TEXTURE_STICKER_CORNER;
-                } else if (is_edge_piece(x, y, z)) {
-                    // Select edge texture based on position
-                    if (y == 0 || y == 2) {
-                        cubes[index].textureType = TEXTURE_STICKER_EDGE_D;
-                    } else if (x == 0 || x == 2) {
-                        cubes[index].textureType = TEXTURE_STICKER_EDGE_L;
-                    } else {
-                        cubes[index].textureType = TEXTURE_STICKER_EDGE_R;
-                    }
-                } else if (is_center_piece(x, y, z)) {
+                // Assign texture based on cube type: center pieces get center texture, others get regular texture
+                if (is_center_piece(x, y, z)) {
                     cubes[index].textureType = TEXTURE_STICKER_CENTER;
                 } else {
-                    cubes[index].textureType = TEXTURE_STICKER_BLANK;
+                    cubes[index].textureType = TEXTURE_STICKER;
                 }
                 
                 index++;
