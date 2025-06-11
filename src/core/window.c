@@ -3,6 +3,7 @@
 #include "window.h"
 #include "application.h"
 #include "../scene/scene.h"
+#include "../solver/cube_solver.h"
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -181,9 +182,18 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
             scene_set_cube_state_from_string(&app->scene, solidColors);
         }
 
+        if (key == GLFW_KEY_E) {
+            const char* solidColors = "WBRRGOOBYWBRRGOOBYWBRRGOOBYWBRRGOOBYWBRRGOOBYWBRRGOOBY";
+            scene_set_cube_state_from_string(&app->scene, solidColors);
+        }
+
         if (key == GLFW_KEY_M) {
             char** moveSequence = generate_random_move_sequence(30);
             handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 7.0f);
+        }
+        if (key == GLFW_KEY_S) {
+            char** moveSequence = cube_solver_solve(&app->scene);
+            handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 2.0f);
         }
 
         if (key == GLFW_KEY_1) { 
@@ -198,6 +208,7 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
             
             handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 3.0f);
         }
+
     }
 }
 

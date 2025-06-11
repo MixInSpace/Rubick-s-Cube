@@ -626,8 +626,8 @@ bool scene_set_cube_state_from_string(Scene* scene, const char* state) {
     return true;
 }
 
-char* scene_get_cube_state_as_string(Scene* scene) {
-    if (!scene || !scene->isRubiksCube) {
+char* scene_get_cube_state_as_string(RGBColor (*cubeColors)[9]) {
+    if (!cubeColors) {
         return NULL;
     }
     
@@ -651,7 +651,7 @@ char* scene_get_cube_state_as_string(Scene* scene) {
         int faceIndex = faceToStringMap[stringFace];
         
         for (int pos = 0; pos < 9; pos++) {
-            RGBColor color = scene->cubeColors[faceIndex][pos];
+            RGBColor color = cubeColors[faceIndex][pos];
             state[stringIndex] = rgb_to_char(color);
             stringIndex++;
         }
@@ -663,7 +663,7 @@ char* scene_get_cube_state_as_string(Scene* scene) {
 }
 
 RGBColor* scene_get_cube_colors(Scene* scene) {
-    return scene->cubeColors;
+    return (RGBColor*)scene->cubeColors;
 }
 
 // Helper function to create a cube with custom colors based on its position and the stored cube colors

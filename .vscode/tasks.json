@@ -24,6 +24,7 @@
                 "${workspaceFolder}/src/resources/resource_manager.c",
                 "${workspaceFolder}/src/scene/*.c",
                 "${workspaceFolder}/src/utils/*.c",
+                "${workspaceFolder}/src/solver/*.c",
                 "${workspaceFolder}/src/precompiled/embedded_textures.o",
                 "-o",
                 "${workspaceFolder}/bin/main.exe",

@@ -30,7 +30,8 @@ typedef enum {
 // Rotation direction
 typedef enum {
     ROTATE_CLOCKWISE = 1,
-    ROTATE_COUNTERCLOCKWISE = -1
+    ROTATE_COUNTERCLOCKWISE = -1,
+    ROTATE_180 = 2
 } RotationDirection;
 
 // Struct to store RGB color values
@@ -92,7 +93,7 @@ bool scene_set_cube_state_from_string(Scene* scene, const char* state);
 // Get the current Rubik's cube state as a string
 // Returns a dynamically allocated string that must be freed by the caller
 // Format is the same as scene_set_cube_state_from_string
-char* scene_get_cube_state_as_string(Scene* scene);
+char* scene_get_cube_state_as_string(RGBColor (*cubeColors)[9]);
 
 RGBColor* scene_get_cube_colors(Scene* scene);
 
