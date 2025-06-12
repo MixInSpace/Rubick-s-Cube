@@ -8,6 +8,7 @@
 typedef struct Application {
     Window window;
     Scene scene;
+    int solvedCount;
     bool running;
     float lastFrame;
     float deltaTime;

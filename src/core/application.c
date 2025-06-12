@@ -33,6 +33,7 @@ bool application_init(Application* app) {
         return false;
     }
     
+    app->solvedCount = 0;
     app->running = true;
     app->lastFrame = 0.0f;
     app->deltaTime = 0.0f;

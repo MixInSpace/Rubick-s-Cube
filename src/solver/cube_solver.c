@@ -174,32 +174,20 @@ Move get_move_from_face_and_direction(FaceIndex face, RotationDirection directio
 }
 
 void apply_move_to_cube_colors(RGBColor (*cubeColors)[9], Move move) {
-    printf("apply_move_to_cube_colors: %s\n", move_to_string(move));
-    printf("cubeColors: %s\n", scene_get_cube_state_as_string(cubeColors));
     FaceIndex face = move_to_face(move);
 
-
-    printf("face: %d\n", face);
     RotationDirection direction = move_to_direction(move);
     if ((face == FACE_IDX_BOTTOM || face == FACE_IDX_BACK || face == FACE_IDX_LEFT) && direction != ROTATE_180){
         direction = -direction;
     }
-    printf("direction: %d\n", direction);
     if (direction == ROTATE_180){
         direction = ROTATE_CLOCKWISE;
         rotate_face_colors(cubeColors, face, direction);
-        printf("apply_move_to_cube_colors: %s\n", scene_get_cube_state_as_string(cubeColors));
-
         rotate_face_colors(cubeColors, face, direction);
-        printf("apply_move_to_cube_colors: %s\n", scene_get_cube_state_as_string(cubeColors));
     }
     else {
         rotate_face_colors(cubeColors, face, direction);
-        printf("apply_move_to_cube_colors: %s\n", scene_get_cube_state_as_string(cubeColors));
-
     }
-    
-
 }
 
 void copy_cube_state(const RGBColor (*source)[9], RGBColor (*dest)[9]) {
@@ -271,7 +259,1068 @@ static bool find_edge_piece(const RGBColor (*cubeColors)[9], RGBColor color1, RG
     return false;
 }
 
+static bool find_corner_piece(const RGBColor (*cubeColors)[9], RGBColor color1, RGBColor color2, RGBColor color3,
+                              FaceIndex* face1, int* pos1, FaceIndex* face2, int* pos2, FaceIndex* face3, int* pos3) {
+    static const struct {
+        FaceIndex face1, pos1, face2, pos2, face3, pos3;
+    } corner_map[] = {
+        {FACE_IDX_TOP, 0, FACE_IDX_FRONT, 0, FACE_IDX_LEFT, 0},
+        {FACE_IDX_TOP, 2, FACE_IDX_RIGHT, 2, FACE_IDX_FRONT, 2},
+        {FACE_IDX_TOP, 6, FACE_IDX_LEFT, 2, FACE_IDX_BACK, 2},
+        {FACE_IDX_TOP, 8, FACE_IDX_BACK, 0, FACE_IDX_RIGHT, 0},
 
+        {FACE_IDX_BOTTOM, 0, FACE_IDX_BACK, 8, FACE_IDX_LEFT, 8},
+        {FACE_IDX_BOTTOM, 2, FACE_IDX_RIGHT, 6, FACE_IDX_BACK, 6},
+        {FACE_IDX_BOTTOM, 6, FACE_IDX_LEFT, 6, FACE_IDX_FRONT, 6},
+        {FACE_IDX_BOTTOM, 8, FACE_IDX_FRONT, 8, FACE_IDX_RIGHT, 8},
+    };
+
+    const int CORNER_COUNT = sizeof(corner_map) / sizeof(corner_map[0]);
+
+    for (int i = 0; i < CORNER_COUNT; ++i) {
+        FaceIndex f1 = corner_map[i].face1;
+        int p1 = corner_map[i].pos1;
+        FaceIndex f2 = corner_map[i].face2;
+        int p2 = corner_map[i].pos2;
+        FaceIndex f3 = corner_map[i].face3;
+        int p3 = corner_map[i].pos3;    
+        
+        RGBColor c1 = cubeColors[f1][p1];
+        RGBColor c2 = cubeColors[f2][p2];
+        RGBColor c3 = cubeColors[f3][p3];
+
+        // printf("f1: %d, f2: %d, f3: %d\n", f1, f2, f3);
+        // printf("p1: %d, p2: %d, p3: %d\n", p1, p2, p3);
+
+
+        // printf("c1: %f, %f, %f\n", c1.r, c1.g, c1.b);
+        // printf("c2: %f, %f, %f\n", c2.r, c2.g, c2.b);
+        // printf("c3: %f, %f, %f\n", c3.r, c3.g, c3.b);
+        // printf("color1: %f, %f, %f\n", color1.r, color1.g, color1.b);
+        // printf("color2: %f, %f, %f\n", color2.r, color2.g, color2.b);
+        // printf("color3: %f, %f, %f\n", color3.r, color3.g, color3.b);
+        if (colors_equal(c1, color1) && colors_equal(c2, color2) && colors_equal(c3, color3)) {
+            *face1 = f1; *pos1 = p1;    
+            *face2 = f2; *pos2 = p2;
+            *face3 = f3; *pos3 = p3;
+            return true;
+        } else if (colors_equal(c1, color1) && colors_equal(c2, color3) && colors_equal(c3, color2)) {
+            *face1 = f1; *pos1 = p1;
+            *face2 = f3; *pos2 = p3;
+            *face3 = f2; *pos3 = p2;
+            return true;
+        } else if (colors_equal(c1, color2) && colors_equal(c2, color1) && colors_equal(c3, color3)) {
+            *face1 = f2; *pos1 = p2;
+            *face2 = f1; *pos2 = p1;
+            *face3 = f3; *pos3 = p3;
+            return true;
+        } else if (colors_equal(c1, color2) && colors_equal(c2, color3) && colors_equal(c3, color1)) {
+            *face1 = f2; *pos1 = p2;
+            *face2 = f3; *pos2 = p3;
+            *face3 = f1; *pos3 = p1;
+            return true;
+        } else if (colors_equal(c1, color3) && colors_equal(c2, color1) && colors_equal(c3, color2)) {
+            *face1 = f3; *pos1 = p3;
+            *face2 = f1; *pos2 = p1;
+            *face3 = f2; *pos3 = p2;
+            return true;
+        } else if (colors_equal(c1, color3) && colors_equal(c2, color2) && colors_equal(c3, color1)) {
+            *face1 = f3; *pos1 = p3;
+            *face2 = f2; *pos2 = p2;
+            *face3 = f1; *pos3 = p1;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void solve_F2L(RGBColor (*cubeColors)[9], MoveSequence* solution) {
+    printf("Solving F2L...\n");
+    
+    RGBColor white = get_center_color(cubeColors, FACE_IDX_TOP);
+    RGBColor red = get_center_color(cubeColors, FACE_IDX_FRONT);
+    RGBColor blue = get_center_color(cubeColors, FACE_IDX_RIGHT);
+    RGBColor orange = get_center_color(cubeColors, FACE_IDX_BACK);
+    RGBColor green = get_center_color(cubeColors, FACE_IDX_LEFT);
+    RGBColor yellow = get_center_color(cubeColors, FACE_IDX_BOTTOM);
+
+    int bottom_target_positions[] = {1, 3, 7, 5};
+    Move down_moves[] = {MOVE_D_PRIME, MOVE_D2, MOVE_D};
+    FaceIndex adjacent_faces[] = {FACE_IDX_FRONT, FACE_IDX_RIGHT, FACE_IDX_BACK, FACE_IDX_LEFT};
+
+
+    
+
+    // Проверяем, если все угловые детали на своем месте
+    for (int i = 0; i < 4; i++) {
+        FaceIndex face = FACE_IDX_FRONT + i;
+        int pos = 1;
+        FaceIndex face2 = (face + 1) % 5 + 1;
+        int pos2 = 1;
+
+        RGBColor color1 = get_center_color(cubeColors, face);
+        RGBColor color2 = get_center_color(cubeColors, face2);
+
+        FaceIndex color_face, color_face2;
+        int color_pos, color_pos2;
+
+        find_edge_piece(cubeColors, color1, color2, &color_face, &color_pos, &color_face2, &color_pos2);
+
+        if (!(color_face == face && color_face2 == face2)) {
+            break;
+        }
+
+        FaceIndex white_face;
+        int white_pos;
+
+        find_corner_piece(cubeColors, color1, color2, white, &color_face, &color_pos, &color_face2, &color_pos2, &white_face, &white_pos);
+
+        if (!(color_face == face && color_face2 == face2 && white_face == FACE_IDX_TOP)) {
+            break;
+        }        
+    }
+    
+    for (int i = 0; i < 4; i++) {
+        FaceIndex face = FACE_IDX_FRONT + i;
+        int pos = 1;
+        FaceIndex face2 = (face % 4) + 1;
+        int pos2 = 1;
+        FaceIndex face3 = (face2 % 4) + 1;
+        FaceIndex face4 = (face3 % 4) + 1;
+
+        RGBColor color1 = get_center_color(cubeColors, face);
+        RGBColor color2 = get_center_color(cubeColors, face2);
+
+        FaceIndex edge_color_face, edge_color_face2;
+        int edge_color_pos, edge_color_pos2;
+
+        find_edge_piece(cubeColors, color1, color2, &edge_color_face, &edge_color_pos, &edge_color_face2, &edge_color_pos2);
+
+        FaceIndex corner_color_face, corner_color_face2, corner_white_face;
+        int corner_color_pos, corner_color_pos2, corner_white_pos;
+
+        find_corner_piece(cubeColors, color1, color2, white, &corner_color_face, &corner_color_pos, &corner_color_face2, &corner_color_pos2, &corner_white_face, &corner_white_pos);
+        
+        
+        // stuck cases
+        if((!(corner_color_face == face && corner_color_face2 == face2 || corner_color_face2 == face && corner_white_face == face2 || corner_color_face == face2 && corner_white_face == face) && 
+            (corner_white_face == FACE_IDX_TOP || corner_color_face == FACE_IDX_TOP || corner_color_face2 == FACE_IDX_TOP)))    
+        {   
+            FaceIndex face_before = (corner_white_face == 1) ? 4 : corner_white_face - 1;
+            FaceIndex face_before1 = (corner_color_face == 1) ? 4 : corner_color_face - 1;
+            FaceIndex face_before2 = (corner_color_face2 == 1) ? 4 : corner_color_face2 - 1;
+
+            RotationDirection rotation = ROTATE_CLOCKWISE;
+
+            FaceIndex corner_white_face_to_rotate = corner_white_face;
+
+            if (corner_white_face == FACE_IDX_TOP) {
+                corner_white_face_to_rotate = corner_color_face;
+                if (edge_color_face == face_before2 || edge_color_face2 == face_before2) {
+                    rotation *= -1;
+                }
+            } else if (corner_color_face == FACE_IDX_TOP) {
+                corner_white_face_to_rotate = corner_color_face2;
+                if (edge_color_face == face_before1 || edge_color_face2 == face_before1) {
+                    rotation *= -1;
+                }
+            } else if (corner_color_face2 == FACE_IDX_TOP) {
+                corner_white_face_to_rotate = corner_white_face;
+                if (edge_color_face == face_before || edge_color_face2 == face_before) {
+                    rotation *= -1;
+                }
+            }
+            move_sequence_add(solution, get_move_from_face_and_direction(corner_white_face_to_rotate, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, rotation), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(corner_white_face_to_rotate, ROTATE_COUNTERCLOCKWISE), cubeColors);
+
+            find_corner_piece(cubeColors, color1, color2, white, &corner_color_face, &corner_color_pos, &corner_color_face2, &corner_color_pos2, &corner_white_face, &corner_white_pos);
+            find_edge_piece(cubeColors, color1, color2, &edge_color_face, &edge_color_pos, &edge_color_face2, &edge_color_pos2);
+        } 
+
+        
+        if ( 
+            !((edge_color_face == face && edge_color_face2 == face2) || (edge_color_face == face2 && edge_color_face2 == face)) && 
+            !(edge_color_face == FACE_IDX_BOTTOM || edge_color_face2 == FACE_IDX_BOTTOM))
+        {
+            RotationDirection rotation = ROTATE_CLOCKWISE;
+            FaceIndex edge_color_face_to_rotate = edge_color_face;
+            printf("edge_color_face: %d, edge_color_face2: %d\n", edge_color_face, edge_color_face2);
+            printf("edge_color_pos: %d\n", edge_color_pos);
+            if (edge_color_face == FACE_IDX_FRONT || edge_color_face == FACE_IDX_BACK) {
+                printf("edge_color_face == FACE_IDX_FRONT || edge_color_face == FACE_IDX_BACK\n");
+                if (edge_color_pos == 5) rotation = ROTATE_CLOCKWISE;
+                else rotation = ROTATE_COUNTERCLOCKWISE;
+            } else if (edge_color_face == FACE_IDX_LEFT || edge_color_face == FACE_IDX_RIGHT) {
+                printf("edge_color_face == FACE_IDX_LEFT || edge_color_face == FACE_IDX_RIGHT\n");
+                if (edge_color_pos == 5) rotation = ROTATE_COUNTERCLOCKWISE;
+                else rotation = ROTATE_CLOCKWISE;
+            }
+            printf("rotation: %d\n", rotation);
+            for (int i = 0; i < 2; i++) {
+                move_sequence_add(solution, get_move_from_face_and_direction(edge_color_face_to_rotate, rotation), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(edge_color_face_to_rotate, -rotation), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+            find_corner_piece(cubeColors, color1, color2, white, &corner_color_face, &corner_color_pos, &corner_color_face2, &corner_color_pos2, &corner_white_face, &corner_white_pos);
+            find_edge_piece(cubeColors, color1, color2, &edge_color_face, &edge_color_pos, &edge_color_face2, &edge_color_pos2);
+        } 
+
+        printf("face1: %d, face2: %d\n", face, face2);
+
+
+        FaceIndex face_after_corner_white_face = (corner_white_face == 4) ? 1 : corner_white_face + 1;
+
+        FaceIndex face_before_corner_white_face = (corner_white_face == 1) ? 4 : corner_white_face - 1;
+
+        FaceIndex face_on_the_other_side_of_white = (corner_white_face + 1) % 4 + 1;
+
+        FaceIndex face_on_the_other_side_of_color = (corner_color_face + 1) % 4 + 1;
+        FaceIndex face_on_the_other_side_of_color2 = (corner_color_face2 + 1) % 4 + 1;
+        
+        // Basic Inserts
+
+        // F2L 1,2
+        if (edge_color_face == corner_color_face && edge_color_face2 == corner_color_face2 && corner_white_face != FACE_IDX_BOTTOM) {
+            int white_pos_index = index_array(corner_white_face, (int*)adjacent_faces);
+            printf("white_pos_index: %d\n", white_pos_index);
+            if (edge_color_face == FACE_IDX_BOTTOM) {
+                printf("F2L 1\n");
+                RotationDirection direction = ROTATE_CLOCKWISE;
+                if (corner_white_face == face) {
+                    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                } else if (corner_white_face == face2) {
+                    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+                } else if (corner_white_face == face3) {
+                    direction = ROTATE_180;
+                }
+
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, direction), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            }
+            else 
+            // F2L 2 work
+            if (edge_color_face2 == FACE_IDX_BOTTOM) {
+                printf("F2L 2\n");
+                RotationDirection direction = ROTATE_COUNTERCLOCKWISE;
+                if (corner_white_face == face) {
+                    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+                } else if (corner_white_face == face2) {
+                    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                } else if (corner_white_face == face4) {
+                    direction = ROTATE_180;
+                }
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, direction), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+        }
+        
+        // F2L 3 work
+        else if (edge_color_face2 == face_after_corner_white_face && edge_color_face == FACE_IDX_BOTTOM && corner_color_face2 == FACE_IDX_BOTTOM) {
+            printf("F2L 3\n");
+            if (corner_white_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+        }
+        // F2L 4 work
+        else if (edge_color_face == face_before_corner_white_face && edge_color_face2 == FACE_IDX_BOTTOM && corner_color_face == FACE_IDX_BOTTOM) {
+            printf("F2L 4\n");
+            if (corner_white_face == face2) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // Reposition Edge
+        
+        // F2L 5 work
+        else if (edge_color_face == face_on_the_other_side_of_white && edge_color_face2 == FACE_IDX_BOTTOM && corner_color_face2 == FACE_IDX_BOTTOM) {
+            printf("F2L 5\n");
+            if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face2) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+    
+        // F2L 6 work?
+        else if (edge_color_face2 == face_on_the_other_side_of_white && edge_color_face == FACE_IDX_BOTTOM && corner_color_face == FACE_IDX_BOTTOM) {
+            printf("F2L 6\n");
+            if (corner_white_face == face2) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+
+        }
+    
+        // F2L 7 work
+        else if (edge_color_face == face_after_corner_white_face && edge_color_face2 == FACE_IDX_BOTTOM && corner_color_face2 == FACE_IDX_BOTTOM) {
+            printf("F2L 7\n");
+            if (corner_white_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            for (int i = 0; i < 2; i++) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }  
+        }
+    
+        // F2L 8
+        else if (edge_color_face2 == face_before_corner_white_face && edge_color_face == FACE_IDX_BOTTOM && corner_color_face == FACE_IDX_BOTTOM) {
+            printf("F2L 8\n");
+            if (corner_white_face == face2) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            for (int i = 0; i < 2; i++) {
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+    
+        // Reposition Edge and Flip Corner
+
+        // F2L 9
+        else if (edge_color_face2 == face_on_the_other_side_of_white && edge_color_face == FACE_IDX_BOTTOM && corner_color_face2 == FACE_IDX_BOTTOM) {
+            printf("F2L 9\n");
+            if (corner_white_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);            
+        }
+    
+        // F2L 10 work
+        else if (edge_color_face == face_on_the_other_side_of_white && edge_color_face2 == FACE_IDX_BOTTOM && corner_color_face == FACE_IDX_BOTTOM) {
+            printf("F2L 10\n");
+            if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            // move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+    
+        // F2L 11 work
+        else if (edge_color_face2 == face_before_corner_white_face && edge_color_face == FACE_IDX_BOTTOM && corner_color_face2 == FACE_IDX_BOTTOM) {
+            printf("F2L 11\n");
+            if (corner_white_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);          
+        }
+    
+        // F2L 12 work
+        else if (edge_color_face == face_after_corner_white_face && edge_color_face2 == FACE_IDX_BOTTOM && corner_color_face == FACE_IDX_BOTTOM) {
+            printf("F2L 12\n");
+            if (corner_white_face == face2) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+            //R' U2 R2 U R2 U R
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+        }
+
+        // F2L 13 work
+        else if (edge_color_face2 == corner_white_face && edge_color_face == FACE_IDX_BOTTOM && corner_color_face2 == FACE_IDX_BOTTOM) {
+            printf("F2L 13\n");
+            if (corner_white_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+    
+        // F2L 14 work
+        else if (edge_color_face == corner_white_face && edge_color_face2 == FACE_IDX_BOTTOM && corner_color_face == FACE_IDX_BOTTOM) {
+            printf("F2L 14\n");
+            if (corner_white_face == face2) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+    
+        // Split Pair by Going Over
+
+        // F2L 15 work
+        else if (edge_color_face == corner_white_face && edge_color_face2 == FACE_IDX_BOTTOM && corner_color_face2 == FACE_IDX_BOTTOM) {
+            printf("F2L 15\n");
+            if (corner_white_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+    
+        // F2L 16 work
+        else if (edge_color_face2 == corner_white_face && edge_color_face == FACE_IDX_BOTTOM && corner_color_face == FACE_IDX_BOTTOM) {
+            printf("F2L 16\n");
+            if (corner_white_face == face2) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+        }
+    
+        // F2L 17 work
+        else if (edge_color_face == corner_color_face2 && edge_color_face2 == FACE_IDX_BOTTOM && corner_white_face == FACE_IDX_BOTTOM) {
+            printf("F2L 17\n");
+            if (corner_color_face2 == face2) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (corner_color_face2 == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_color_face2 == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // F2L 18 work
+        else if (edge_color_face2 == corner_color_face && edge_color_face == FACE_IDX_BOTTOM && corner_white_face == FACE_IDX_BOTTOM) {
+            printf("F2L 18\n");
+            if (corner_color_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_color_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_color_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+            for (int i = 0; i < 2; i++) {
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+        }
+    
+        
+        // Pair Made on Side
+
+        // F2L 19 work
+        else if (edge_color_face == face_on_the_other_side_of_color && edge_color_face2 == FACE_IDX_BOTTOM && corner_white_face == FACE_IDX_BOTTOM) {
+            printf("F2L 19\n");
+            if (corner_color_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_color_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_color_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            for (int i = 0; i < 2; i++) {
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);   
+        }
+    
+        // F2L 20
+        else if (edge_color_face2 == face_on_the_other_side_of_color2 && edge_color_face == FACE_IDX_BOTTOM && corner_white_face == FACE_IDX_BOTTOM) {
+            printf("F2L 20\n");
+            if (corner_color_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_color_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_color_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);          
+        }
+    
+        // F2L 21 work
+        else if (edge_color_face == face_on_the_other_side_of_color2 && edge_color_face2 == FACE_IDX_BOTTOM && corner_white_face == FACE_IDX_BOTTOM) {
+            printf("F2L 21\n");
+
+            printf("edge_color_face: %d, face_on_the_other_side_of_color2: %d\n", edge_color_face, face_on_the_other_side_of_color2);
+            printf("edge_color_face2: %d, FACE_IDX_BOTTOM: %d\n", edge_color_face2, FACE_IDX_BOTTOM);
+            printf("corner_white_face: %d, FACE_IDX_BOTTOM: %d\n", corner_white_face, FACE_IDX_BOTTOM);
+
+
+            if (corner_color_face2 == face2) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (corner_color_face2 == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_color_face2 == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+    
+        // F2L 22 work
+        else if (edge_color_face2 == face_on_the_other_side_of_color && edge_color_face == FACE_IDX_BOTTOM && corner_white_face == FACE_IDX_BOTTOM) {
+            printf("F2L 22\n");
+            if (corner_color_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_color_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_color_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+        }
+    
+
+        // Weird
+
+        // F2L 23 work
+        else if (edge_color_face == corner_color_face && edge_color_face2 == FACE_IDX_BOTTOM && corner_white_face == FACE_IDX_BOTTOM) {
+            printf("F2L 23\n");
+            if (corner_color_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_color_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_color_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // F2L 24 work
+        else if (edge_color_face2 == corner_color_face2 && edge_color_face == FACE_IDX_BOTTOM && corner_white_face == FACE_IDX_BOTTOM) {
+            printf("F2L 24\n");
+            if (corner_color_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_color_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_color_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // F2L 25
+        else if (edge_color_face2 == FACE_IDX_BOTTOM && corner_white_face == FACE_IDX_TOP && corner_color_face == face) {
+            printf("F2L 25\n");
+            if (edge_color_face == face2) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (edge_color_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (edge_color_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // F2L 26 work
+        else if (edge_color_face == FACE_IDX_BOTTOM && corner_white_face == FACE_IDX_TOP && corner_color_face == face) {
+            printf("F2L 26\n");
+            if (edge_color_face2 == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (edge_color_face2 == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (edge_color_face2 == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+        }
+            
+        // F2L 27 work
+        else if (edge_color_face2 == FACE_IDX_BOTTOM && corner_color_face == FACE_IDX_TOP) {
+            printf("F2L 27\n");
+            if (edge_color_face == face2) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (edge_color_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (edge_color_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // F2L 28 work
+        else if (edge_color_face == FACE_IDX_BOTTOM && corner_color_face2 == FACE_IDX_TOP) {
+            printf("F2L 28\n");
+            if (edge_color_face2 == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (edge_color_face2 == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (edge_color_face2 == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+        }
+
+        // F2L 29
+        else if (edge_color_face == FACE_IDX_BOTTOM && corner_color_face == FACE_IDX_TOP) {
+            printf("F2L 29\n");
+            if (edge_color_face2 == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (edge_color_face2 == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (edge_color_face2 == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            for (int i = 0; i < 2; i++) {
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+        }
+
+        // F2L 30 work
+        else if (edge_color_face2 == FACE_IDX_BOTTOM && corner_color_face2 == FACE_IDX_TOP) {
+            printf("F2L 30\n");
+            if (edge_color_face == face2) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            } else if (edge_color_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (edge_color_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // Edge in Place, Corner in D face
+
+        // F2L 31 work
+        else if (edge_color_face == face2 && edge_color_face2 == face && corner_white_face == FACE_IDX_BOTTOM) {
+            printf("F2L 31\n");
+            if (corner_color_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_color_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_color_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+        }
+
+        // F2L 32 work
+        else if (edge_color_face == face && edge_color_face2 == face2 && corner_white_face == FACE_IDX_BOTTOM) {
+            printf("F2L 32\n");
+            if (corner_color_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_color_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_color_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            for (int i = 0; i < 3; i++) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+        }
+
+        // F2L 33 work
+        else if (edge_color_face == face && edge_color_face2 == face2 && corner_color_face2 == FACE_IDX_BOTTOM) {
+            printf("F2L 33\n");
+            if (corner_white_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // F2L 34 work
+        else if (edge_color_face == face && edge_color_face2 == face2 && corner_color_face == FACE_IDX_BOTTOM) {
+            printf("F2L 34\n");
+            if (corner_color_face2 == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_color_face2 == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_color_face2 == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // F2L 35 work
+        else if (edge_color_face == face2 && edge_color_face2 == face && corner_color_face2 == FACE_IDX_BOTTOM) {
+            printf("F2L 35\n");
+            if (corner_white_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+        }
+
+        // F2L 36 work
+        else if (edge_color_face == face2 && edge_color_face2 == face && corner_color_face == FACE_IDX_BOTTOM) {
+            printf("F2L 36\n");
+            if (corner_white_face == face) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            } else if (corner_white_face == face4) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            } else if (corner_white_face == face3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // Edge and Corner in Place
+        
+        // F2L 37
+        // solved state
+
+        // F2L 38
+        else if (edge_color_face == face2 && edge_color_face2 == face && corner_color_face == FACE_IDX_TOP && corner_color_face2 == face2) {
+            printf("F2L 38\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // F2L 39
+        else if (edge_color_face == face && edge_color_face2 == face2 && corner_color_face == FACE_IDX_TOP && corner_color_face2 == face) {
+            printf("F2L 39\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // F2L 40
+        else if (edge_color_face == face && edge_color_face2 == face2 && corner_color_face2 == FACE_IDX_TOP && corner_color_face == face2) {
+            printf("F2L 40\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+        }
+
+        // F2L 41
+        else if (edge_color_face == face2 && edge_color_face2 == face && corner_color_face == FACE_IDX_TOP && corner_color_face2 == face) {
+            printf("F2L 41\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+
+        // F2L 42 work
+        else if (edge_color_face == face2 && edge_color_face2 == face && corner_color_face2 == FACE_IDX_TOP && corner_color_face == face2) {
+            printf("F2L 42\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+        }
+        
+        
+        
+    
+    }   
+
+}
 
 static void solve_white_cross(RGBColor (*cubeColors)[9], MoveSequence* solution) {
     printf("Solving white cross...\n");
@@ -396,10 +1445,7 @@ static void solve_white_cross(RGBColor (*cubeColors)[9], MoveSequence* solution)
     }
 }
 
-// Simplified white corners solving
-static void solve_white_corners(RGBColor (*cubeColors)[9], MoveSequence* solution) {
 
-}
 
 // Simplified middle layer solving
 static void solve_middle_layer(RGBColor (*cubeColors)[9], MoveSequence* solution) {
@@ -439,6 +1485,8 @@ char** cube_solver_solve(Scene* scene) {
     
     // Layer-by-layer solving approach
     solve_white_cross(working_colors, &solution);
+    solve_F2L(working_colors, &solution);
+
     // solve_white_corners(working_colors, &solution);
     // solve_middle_layer(working_colors, &solution);
     // solve_last_layer(working_colors, &solution);

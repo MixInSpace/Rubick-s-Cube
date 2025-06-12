@@ -189,11 +189,13 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
 
         if (key == GLFW_KEY_M) {
             char** moveSequence = generate_random_move_sequence(30);
-            handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 7.0f);
+            handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 300.0f);
         }
         if (key == GLFW_KEY_S) {
             char** moveSequence = cube_solver_solve(&app->scene);
-            handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 2.0f);
+            handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 300.0f);
+            app->solvedCount++;
+            printf("Solved for the %d time\n", app->solvedCount);
         }
 
         if (key == GLFW_KEY_1) { 
