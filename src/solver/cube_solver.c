@@ -1,4 +1,5 @@
 #include "cube_solver.h"
+#include "oll.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +21,25 @@ static bool colors_equal(RGBColor a, RGBColor b) {
            fabs(a.b - b.b) < tolerance;
 }
 
+static bool bottom_equal(int* array1, int* array2) {
+    for (int i = 0; i < 9; i++) {
+        if (array1[i] != array2[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool sides_equal(int (*array1)[3], int (*array2)[3]) {
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 3; j++) {
+            if (array1[i][j] != array2[i][j]) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
 // Get the center color for a face (position 4 is always the center)
 static RGBColor get_center_color(const RGBColor (*cubeColors)[9], FaceIndex face) {
     return cubeColors[face][4];
@@ -335,22 +355,221 @@ static bool find_corner_piece(const RGBColor (*cubeColors)[9], RGBColor color1, 
     return false;
 }
 
-static void solve_F2L(RGBColor (*cubeColors)[9], MoveSequence* solution) {
-    printf("Solving F2L...\n");
+static void get_yellow_positions(const RGBColor (*cubeColors)[9], int* positions_bottom, int (*positions_sides)[3]) {
+    // find all yellow cells on the cube and export their positions in form of indexes on the cube
+    RGBColor yellow = get_center_color(cubeColors, FACE_IDX_BOTTOM);
+    RGBColor green = get_center_color(cubeColors, FACE_IDX_FRONT);
+    RGBColor blue = get_center_color(cubeColors, FACE_IDX_RIGHT);
+    RGBColor red = get_center_color(cubeColors, FACE_IDX_BACK);
+    RGBColor orange = get_center_color(cubeColors, FACE_IDX_LEFT);
+    for (int i = 0; i < 9; i++) {
+        positions_bottom[i] = 0;
+    }
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 3; j++) {
+            positions_sides[i][j] = 0;
+        }
+    }
+
+    for (int i = 0; i < 9; i++) {
+        if (colors_equal(cubeColors[FACE_IDX_BOTTOM][i], yellow)) {
+            positions_bottom[i] = 1;
+        } 
+    }
+    int temp = 0;
+    temp = positions_bottom[1];
+    positions_bottom[1] = positions_bottom[3];
+    positions_bottom[3] = temp;
+
+    temp = positions_bottom[2];
+    positions_bottom[2] = positions_bottom[6];
+    positions_bottom[6] = temp;
+
+    temp = positions_bottom[5];
+    positions_bottom[5] = positions_bottom[7];
+    positions_bottom[7] = temp;
+
+    for (int i = 6; i < 9; i++) {
+        if (colors_equal(cubeColors[FACE_IDX_FRONT][i], yellow)) {
+            positions_sides[1][i - 6] = 1;
+        }
+        if (colors_equal(cubeColors[FACE_IDX_RIGHT][i], yellow)) {
+            positions_sides[2][8 - i] = 1;
+        }
+        if (colors_equal(cubeColors[FACE_IDX_BACK][i], yellow)) {
+            positions_sides[3][i - 6] = 1;
+        }
+        if (colors_equal(cubeColors[FACE_IDX_LEFT][i], yellow)) {
+            positions_sides[0][8 - i] = 1;
+        }
+    }
+}
+
+static void get_side_positions(const RGBColor (*cubeColors)[9], int (*positions_sides)[3]) {
+    RGBColor green = get_center_color(cubeColors, FACE_IDX_LEFT);
+    RGBColor blue = get_center_color(cubeColors, FACE_IDX_RIGHT);
+    RGBColor red = get_center_color(cubeColors, FACE_IDX_FRONT);
+    RGBColor orange = get_center_color(cubeColors, FACE_IDX_BACK);
+
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 3; j++) {
+            positions_sides[i][j] = 0;
+        }
+    }
+
+    for (int face = 1; face < 5; face++) {
+        for (int i = 6; i < 9; i++) {
+            int id = i - 6;
+            if (face == FACE_IDX_LEFT || face == FACE_IDX_RIGHT) {
+                id = 8 - i;
+            }
+
+            if (colors_equal(cubeColors[face][i], red)) {
+                positions_sides[face-1][id] = 1;
+            }
+            if (colors_equal(cubeColors[face][i], blue)) {
+                positions_sides[face-1][id] = 2;
+            }
+            if (colors_equal(cubeColors[face][i], orange)) {
+                positions_sides[face-1][id] = 3;
+            }
+            if (colors_equal(cubeColors[face][i], green)) {
+                positions_sides[face-1][id] = 4;
+            }
+        }
+    }
+}
+
+static void solve_white_cross(RGBColor (*cubeColors)[9], MoveSequence* solution) {
+    printf("Solving white cross...\n");
     
     RGBColor white = get_center_color(cubeColors, FACE_IDX_TOP);
-    RGBColor red = get_center_color(cubeColors, FACE_IDX_FRONT);
-    RGBColor blue = get_center_color(cubeColors, FACE_IDX_RIGHT);
-    RGBColor orange = get_center_color(cubeColors, FACE_IDX_BACK);
-    RGBColor green = get_center_color(cubeColors, FACE_IDX_LEFT);
-    RGBColor yellow = get_center_color(cubeColors, FACE_IDX_BOTTOM);
+    
+    /*
+           [7]
+        [3]   [5]
+           [1]
+        нижняя грань (вид спереди, передняя грань со стороны 7)
+    */
+    int bottom_target_positions[] = {7, 5, 1, 3};
+
+    /*
+           [1]
+        [5]   [3]
+           [7]
+        верхняя грань (вид спереди, передняя грань со стороны 1)
+    */
+    int top_target_positions[] = {1, 5, 7, 3};
+
+    /*
+        T
+        F R B L
+        D    
+    */
+    FaceIndex adjacent_faces[] = {FACE_IDX_FRONT, FACE_IDX_RIGHT, FACE_IDX_BACK, FACE_IDX_LEFT};
+    Move down_moves[] = {MOVE_D_PRIME, MOVE_D2, MOVE_D};
+    
+    for (int i = 0; i < 4; i++) {
+        int target_pos = top_target_positions[i];
+        FaceIndex adj_face = adjacent_faces[i];
+        RGBColor target_color = get_center_color(cubeColors, adj_face);
+
+        // Проверяем, если это ребро уже стоит на месте        
+        if (colors_equal(cubeColors[FACE_IDX_TOP][target_pos], white) &&
+            position_matches_center(cubeColors, adj_face, 1) &&
+            colors_equal(cubeColors[adj_face][1], target_color)) {
+            continue; 
+        }
+
+        // Находим ребро
+        FaceIndex white_face, color_face;
+        int white_pos, color_pos;
+        Move return_move = -1;
+
+        if (!find_edge_piece(cubeColors, white, target_color, &white_face, &white_pos, &color_face, &color_pos)) {
+            printf("No edge piece found\n");
+            return;
+        }
+
+        // Если белый цвет сверху, но не на своем месте, то опускаем его вниз и обновляем положение 
+        if (white_face == FACE_IDX_TOP) {
+            move_sequence_add(solution,
+                get_move_from_face_and_direction(color_face, ROTATE_180),
+                cubeColors);
+            find_edge_piece(cubeColors, white, target_color, &white_face, &white_pos, &color_face, &color_pos);
+        } 
+
+        // Если белый цвет на одной из боковых граней, то
+        else if (white_face != FACE_IDX_BOTTOM) {
+
+            // Если белый цвет сверху на боковой грани, то поворачиваем эту грань чтобы следующим ходом опустить его вниз
+            if (white_pos == 1) {
+                move_sequence_add(solution, get_move_from_face_and_direction(white_face, ROTATE_CLOCKWISE), cubeColors);
+                find_edge_piece(cubeColors, white, target_color, &white_face, &white_pos, &color_face, &color_pos);
+            } 
+            // Если снизу, то 
+            else if (white_pos == 7) {
+                // Чтобы не помешать другим граням, поворачиваем нижнюю грань на свое место
+                int white_pos_index = index_array(white_face, (int*)adjacent_faces);
+                int move_index = ((white_pos_index - i) + 4) % 4;
+                if (move_index != 0)
+                    move_sequence_add(solution, down_moves[move_index - 1], cubeColors);
+                find_edge_piece(cubeColors, white, target_color, &white_face, &white_pos, &color_face, &color_pos);
+                // И делаем поворот чтобы следующим ходом опустить его вниз
+                move_sequence_add(solution, get_move_from_face_and_direction(white_face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                find_edge_piece(cubeColors, white, target_color, &white_face, &white_pos, &color_face, &color_pos);
+            }
+
+            // Если цвет на боковой грани, то
+            if ((color_pos == 5 || color_pos == 3) && color_face != adj_face) {
+                // В зависимости от положения цвета, поворачиваем грань по часовой или против часовой стрелки
+                RotationDirection direction = color_pos == 5 ? ROTATE_CLOCKWISE : ROTATE_COUNTERCLOCKWISE;
+                // Если цвет на левой или правой грани, то поворачиваем в противоположную сторону
+                if (color_face == FACE_IDX_LEFT || color_face == FACE_IDX_RIGHT) direction *= -1;
+                // Если сверху деталь на своем месте, то запоминаем, что надо будет вернуть его на место 
+                if (colors_equal(get_color(cubeColors, FACE_IDX_TOP, top_target_positions[index_array(color_face, (int*)adjacent_faces)]), white)) {
+                    return_move = get_move_from_face_and_direction(color_face, -direction);
+                }
+                move_sequence_add(solution, get_move_from_face_and_direction(color_face, direction), cubeColors);
+                find_edge_piece(cubeColors, white, target_color, &white_face, &white_pos, &color_face, &color_pos);
+            }
+
+            // Если цвет на своей грани, то поворачиваем ее на свое место
+            if (color_face == adj_face) {
+                RotationDirection direction = color_pos == 3 ? ROTATE_CLOCKWISE : ROTATE_COUNTERCLOCKWISE;
+                if (color_face == FACE_IDX_LEFT || color_face == FACE_IDX_RIGHT) {
+                    direction = -direction;
+                }
+                move_sequence_add(solution, get_move_from_face_and_direction(color_face, direction), cubeColors);
+                continue;
+            }
+        }
+
+        // Если белый цвет на нижней грани, то поворачиваем нижнюю грань на свое место и поднимаем деталь вверх
+        int white_pos_index = index_array(white_pos, bottom_target_positions);
+        int move_index = ((white_pos_index - i) + 4) % 4;
+        if (move_index != 0)
+            move_sequence_add(solution, down_moves[move_index - 1], cubeColors);
+
+        // Если надо вернуть деталь на место, то делаем это
+        if (return_move != -1) {
+            move_sequence_add(solution, return_move, cubeColors);
+        }
+
+        // Поворачиваем грань на 180 градусов, чтобы поставить деталь на свое место
+        move_sequence_add(solution, get_move_from_face_and_direction(adj_face, ROTATE_180), cubeColors);
+
+    }
+}
+
+static void solve_F2L(RGBColor (*cubeColors)[9], MoveSequence* solution) {
+    printf("Solving F2L...\n");
 
     int bottom_target_positions[] = {1, 3, 7, 5};
     Move down_moves[] = {MOVE_D_PRIME, MOVE_D2, MOVE_D};
     FaceIndex adjacent_faces[] = {FACE_IDX_FRONT, FACE_IDX_RIGHT, FACE_IDX_BACK, FACE_IDX_LEFT};
 
-
-    
+    RGBColor white = get_center_color(cubeColors, FACE_IDX_TOP);
 
     // Проверяем, если все угловые детали на своем месте
     for (int i = 0; i < 4; i++) {
@@ -417,12 +636,12 @@ static void solve_F2L(RGBColor (*cubeColors)[9], MoveSequence* solution) {
 
             if (corner_white_face == FACE_IDX_TOP) {
                 corner_white_face_to_rotate = corner_color_face;
-                if (edge_color_face == face_before2 || edge_color_face2 == face_before2) {
+                if (edge_color_face == face_before1 || edge_color_face2 == face_before1) {
                     rotation *= -1;
                 }
             } else if (corner_color_face == FACE_IDX_TOP) {
                 corner_white_face_to_rotate = corner_color_face2;
-                if (edge_color_face == face_before1 || edge_color_face2 == face_before1) {
+                if (edge_color_face == face_before2 || edge_color_face2 == face_before2) {
                     rotation *= -1;
                 }
             } else if (corner_color_face2 == FACE_IDX_TOP) {
@@ -438,26 +657,19 @@ static void solve_F2L(RGBColor (*cubeColors)[9], MoveSequence* solution) {
             find_corner_piece(cubeColors, color1, color2, white, &corner_color_face, &corner_color_pos, &corner_color_face2, &corner_color_pos2, &corner_white_face, &corner_white_pos);
             find_edge_piece(cubeColors, color1, color2, &edge_color_face, &edge_color_pos, &edge_color_face2, &edge_color_pos2);
         } 
-
-        
         if ( 
             !((edge_color_face == face && edge_color_face2 == face2) || (edge_color_face == face2 && edge_color_face2 == face)) && 
             !(edge_color_face == FACE_IDX_BOTTOM || edge_color_face2 == FACE_IDX_BOTTOM))
         {
             RotationDirection rotation = ROTATE_CLOCKWISE;
             FaceIndex edge_color_face_to_rotate = edge_color_face;
-            printf("edge_color_face: %d, edge_color_face2: %d\n", edge_color_face, edge_color_face2);
-            printf("edge_color_pos: %d\n", edge_color_pos);
             if (edge_color_face == FACE_IDX_FRONT || edge_color_face == FACE_IDX_BACK) {
-                printf("edge_color_face == FACE_IDX_FRONT || edge_color_face == FACE_IDX_BACK\n");
                 if (edge_color_pos == 5) rotation = ROTATE_CLOCKWISE;
                 else rotation = ROTATE_COUNTERCLOCKWISE;
             } else if (edge_color_face == FACE_IDX_LEFT || edge_color_face == FACE_IDX_RIGHT) {
-                printf("edge_color_face == FACE_IDX_LEFT || edge_color_face == FACE_IDX_RIGHT\n");
                 if (edge_color_pos == 5) rotation = ROTATE_COUNTERCLOCKWISE;
                 else rotation = ROTATE_CLOCKWISE;
             }
-            printf("rotation: %d\n", rotation);
             for (int i = 0; i < 2; i++) {
                 move_sequence_add(solution, get_move_from_face_and_direction(edge_color_face_to_rotate, rotation), cubeColors);
                 move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
@@ -468,7 +680,7 @@ static void solve_F2L(RGBColor (*cubeColors)[9], MoveSequence* solution) {
             find_edge_piece(cubeColors, color1, color2, &edge_color_face, &edge_color_pos, &edge_color_face2, &edge_color_pos2);
         } 
 
-        printf("face1: %d, face2: %d\n", face, face2);
+        // printf("face1: %d, face2: %d\n", face, face2);
 
 
         FaceIndex face_after_corner_white_face = (corner_white_face == 4) ? 1 : corner_white_face + 1;
@@ -485,7 +697,6 @@ static void solve_F2L(RGBColor (*cubeColors)[9], MoveSequence* solution) {
         // F2L 1,2
         if (edge_color_face == corner_color_face && edge_color_face2 == corner_color_face2 && corner_white_face != FACE_IDX_BOTTOM) {
             int white_pos_index = index_array(corner_white_face, (int*)adjacent_faces);
-            printf("white_pos_index: %d\n", white_pos_index);
             if (edge_color_face == FACE_IDX_BOTTOM) {
                 printf("F2L 1\n");
                 RotationDirection direction = ROTATE_CLOCKWISE;
@@ -901,11 +1112,6 @@ static void solve_F2L(RGBColor (*cubeColors)[9], MoveSequence* solution) {
         else if (edge_color_face == face_on_the_other_side_of_color2 && edge_color_face2 == FACE_IDX_BOTTOM && corner_white_face == FACE_IDX_BOTTOM) {
             printf("F2L 21\n");
 
-            printf("edge_color_face: %d, face_on_the_other_side_of_color2: %d\n", edge_color_face, face_on_the_other_side_of_color2);
-            printf("edge_color_face2: %d, FACE_IDX_BOTTOM: %d\n", edge_color_face2, FACE_IDX_BOTTOM);
-            printf("corner_white_face: %d, FACE_IDX_BOTTOM: %d\n", corner_white_face, FACE_IDX_BOTTOM);
-
-
             if (corner_color_face2 == face2) {
                 move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
             } else if (corner_color_face2 == face3) {
@@ -1238,8 +1444,8 @@ static void solve_F2L(RGBColor (*cubeColors)[9], MoveSequence* solution) {
         // F2L 37
         // solved state
 
-        // F2L 38
-        else if (edge_color_face == face2 && edge_color_face2 == face && corner_color_face == FACE_IDX_TOP && corner_color_face2 == face2) {
+        // F2L 38 work
+        else if (edge_color_face == face2 && edge_color_face2 == face && corner_white_face == FACE_IDX_TOP && corner_color_face2 == face2) {
             printf("F2L 38\n");
 
             move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
@@ -1315,147 +1521,1256 @@ static void solve_F2L(RGBColor (*cubeColors)[9], MoveSequence* solution) {
             move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
         }
         
-        
+        else {
+            printf("AHTUNG\n");
+            printf(scene_get_cube_state_as_string(cubeColors));
+        }
         
     
     }   
 
 }
 
-static void solve_white_cross(RGBColor (*cubeColors)[9], MoveSequence* solution) {
-    printf("Solving white cross...\n");
-    
-    RGBColor white = get_center_color(cubeColors, FACE_IDX_TOP);
-    
-    /*
-           [7]
-        [3]   [5]
-           [1]
-        нижняя грань (вид спереди, передняя грань со стороны 7)
-    */
-    int bottom_target_positions[] = {7, 5, 1, 3};
+static void solve_OLL(RGBColor (*cubeColors)[9], MoveSequence* solution) {
+    printf("Solving OLL...\n");
+    int positions_bottom[9];
+    int positions_sides[4][3];
 
-    /*
-           [1]
-        [5]   [3]
-           [7]
-        верхняя грань (вид спереди, передняя грань со стороны 1)
-    */
-    int top_target_positions[] = {1, 5, 7, 3};
+    RGBColor (*temp_cubeColors)[9] = malloc(sizeof(RGBColor[6][9]));
+    copy_cube_state(cubeColors, temp_cubeColors);
 
-    /*
-        T
-        F R B L
-        D    
-    */
-    FaceIndex adjacent_faces[] = {FACE_IDX_FRONT, FACE_IDX_RIGHT, FACE_IDX_BACK, FACE_IDX_LEFT};
-    Move down_moves[] = {MOVE_D_PRIME, MOVE_D2, MOVE_D};
-    
+    rotate_face_colors(temp_cubeColors, FACE_IDX_BOTTOM, ROTATE_CLOCKWISE);
+    get_yellow_positions(temp_cubeColors, positions_bottom, positions_sides);
+
+    FaceIndex face = FACE_IDX_RIGHT;
+    FaceIndex face2 = FACE_IDX_BACK;
+    FaceIndex face3 = FACE_IDX_LEFT;
+    FaceIndex face4 = FACE_IDX_FRONT;
+
+    Move moves[] = {MOVE_D_PRIME, MOVE_D2, MOVE_D};
+
+
+
     for (int i = 0; i < 4; i++) {
-        printf("Solving white cross: %d\n", i);
-        int target_pos = top_target_positions[i];
-        FaceIndex adj_face = adjacent_faces[i];
-        RGBColor target_color = get_center_color(cubeColors, adj_face);
+        if (bottom_equal(positions_bottom, b_OLL_1) && sides_equal(positions_sides, s_OLL_1)) {
+            printf("OLL 1\n");
 
-        // Проверяем, если это ребро уже стоит на месте        
-        if (colors_equal(cubeColors[FACE_IDX_TOP][target_pos], white) &&
-            position_matches_center(cubeColors, adj_face, 1) &&
-            colors_equal(cubeColors[adj_face][1], target_color)) {
-            continue; 
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_2) && sides_equal(positions_sides, s_OLL_2)) {
+            printf("OLL 2\n");
+
+            // F R U R' U' F' U2 F U R U' R' F'
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_3) && sides_equal(positions_sides, s_OLL_3)) {
+            printf("OLL 3\n");
+
+            // U F U2 F R' F' R U R U R' U F'
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_4) && sides_equal(positions_sides, s_OLL_4)) {
+            printf("OLL 4\n");
+
+            // R' U' F' U' F R U' R' F' U' F U' R
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_5) && sides_equal(positions_sides, s_OLL_5)) {
+            printf("OLL 5\n");
+
+            // F R U R' U' F' U' F R U R' U' F'
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_6) && sides_equal(positions_sides, s_OLL_6)) {
+            printf("OLL 6\n");
+
+            // U2 F' U' F2 R' F' R U R U2 R' (U2 не было)
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_7) && sides_equal(positions_sides, s_OLL_7)) {
+            printf("OLL 7\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_8) && sides_equal(positions_sides, s_OLL_8)) {
+            printf("OLL 8\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_9) && sides_equal(positions_sides, s_OLL_9)) {
+            printf("OLL 9\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_10) && sides_equal(positions_sides, s_OLL_10)) {
+            printf("OLL 10\n");
+
+            // U' R U R' U R' F R F' R U2 R'
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);          
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_11) && sides_equal(positions_sides, s_OLL_11)) {
+            printf("OLL 11\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_12) && sides_equal(positions_sides, s_OLL_12)) {
+            printf("OLL 12\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_13) && sides_equal(positions_sides, s_OLL_13)) {
+            printf("OLL 13\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_14) && sides_equal(positions_sides, s_OLL_14)) {
+            printf("OLL 14\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_15) && sides_equal(positions_sides, s_OLL_15)) {
+            printf("OLL 15\n");
+
+            // U2 F R U R' U' F' U R U R' U R U2 R'
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_16) && sides_equal(positions_sides, s_OLL_16)) {
+            printf("OLL 16\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_17) && sides_equal(positions_sides, s_OLL_17)) {
+            printf("OLL 17\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_18) && sides_equal(positions_sides, s_OLL_18)) {
+            printf("OLL 18\n");
+
+            // U' F R' F' R U R U' R' U F R U R' U' F'
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_19) && sides_equal(positions_sides, s_OLL_19)) {
+            printf("OLL 19\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_20) && sides_equal(positions_sides, s_OLL_20)) {
+            printf("OLL 20\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_TOP, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_TOP, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_21) && sides_equal(positions_sides, s_OLL_21)) {
+            printf("OLL 21\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_22) && sides_equal(positions_sides, s_OLL_22)) {
+            printf("OLL 22\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_23) && sides_equal(positions_sides, s_OLL_23)) {
+            printf("OLL 23\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_TOP, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_TOP, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_24) && sides_equal(positions_sides, s_OLL_24)) {
+            printf("OLL 24\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_25) && sides_equal(positions_sides, s_OLL_25)) {
+            printf("OLL 25\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_26) && sides_equal(positions_sides, s_OLL_26)) {
+            printf("OLL 26\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_27) && sides_equal(positions_sides, s_OLL_27)) {
+            printf("OLL 27\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_28) && sides_equal(positions_sides, s_OLL_28)) {
+            printf("OLL 28\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_29) && sides_equal(positions_sides, s_OLL_29)) {
+            printf("OLL 29\n");
+
+            // U R U R' U' R U' R' F' U' F R U R'
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_30) && sides_equal(positions_sides, s_OLL_30)) {
+            printf("OLL 30\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_31) && sides_equal(positions_sides, s_OLL_31)) {
+            printf("OLL 31\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_32) && sides_equal(positions_sides, s_OLL_32)) {
+            printf("OLL 32\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_33) && sides_equal(positions_sides, s_OLL_33)) {
+            printf("OLL 33\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_34) && sides_equal(positions_sides, s_OLL_34)) {
+            printf("OLL 34\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_35) && sides_equal(positions_sides, s_OLL_35)) {
+            printf("OLL 35\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_36) && sides_equal(positions_sides, s_OLL_36)) {
+            printf("OLL 36\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_37) && sides_equal(positions_sides, s_OLL_37)) {
+            printf("OLL 37\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_38) && sides_equal(positions_sides, s_OLL_38)) {
+            printf("OLL 38\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_39) && sides_equal(positions_sides, s_OLL_39)) {
+            printf("OLL 39\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_40) && sides_equal(positions_sides, s_OLL_40)) {
+            printf("OLL 40\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_41) && sides_equal(positions_sides, s_OLL_41)) {
+            printf("OLL 41\n");
+
+            // R U' R' U2 R U B U' B' U' R'
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }   
+        else if (bottom_equal(positions_bottom, b_OLL_42) && sides_equal(positions_sides, s_OLL_42)) {
+            printf("OLL 42\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_43) && sides_equal(positions_sides, s_OLL_43)) {
+            printf("OLL 43\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_44) && sides_equal(positions_sides, s_OLL_44)) {
+            printf("OLL 44\n");
+
+            // B U L U' L' B'
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_45) && sides_equal(positions_sides, s_OLL_45)) {
+            printf("OLL 45\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_46) && sides_equal(positions_sides, s_OLL_46)) {
+            printf("OLL 46\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_47) && sides_equal(positions_sides, s_OLL_47)) {
+            printf("OLL 47\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_48) && sides_equal(positions_sides, s_OLL_48)) {
+            printf("OLL 48\n");
+
+            // F R U R' U' R U R' U' F'
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_49) && sides_equal(positions_sides, s_OLL_49)) {
+            printf("OLL 49\n");
+
+            // R B' R2 F R2 B R2 F' R
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }   
+        else if (bottom_equal(positions_bottom, b_OLL_50) && sides_equal(positions_sides, s_OLL_50)) {
+            printf("OLL 50\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        }
+        else if (bottom_equal(positions_bottom, b_OLL_51) && sides_equal(positions_sides, s_OLL_51)) {
+            printf("OLL 51\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        } 
+        else if (bottom_equal(positions_bottom, b_OLL_52) && sides_equal(positions_sides, s_OLL_52)) {
+            printf("OLL 52\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        } 
+        else if (bottom_equal(positions_bottom, b_OLL_53) && sides_equal(positions_sides, s_OLL_53)) {
+            printf("OLL 53\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        } 
+        else if (bottom_equal(positions_bottom, b_OLL_54) && sides_equal(positions_sides, s_OLL_54)) {
+            printf("OLL 54\n");
+
+            // F' L' U' L U F L' U' L U L F' L' F
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            break;
+        } 
+        else if (bottom_equal(positions_bottom, b_OLL_55) && sides_equal(positions_sides, s_OLL_55)) {
+            printf("OLL 55\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        } 
+        else if (bottom_equal(positions_bottom, b_OLL_56) && sides_equal(positions_sides, s_OLL_56)) {
+            printf("OLL 56\n");
+
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        } 
+        else if (bottom_equal(positions_bottom, b_OLL_57) && sides_equal(positions_sides, s_OLL_57)) {
+            printf("OLL 57\n");
+
+            // L' R U R' U' L R' F R F'
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+            move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            break;
+        } else {
+            printf("Position unknown\n");
         }
 
-        // Находим ребро
-        FaceIndex white_face, color_face;
-        int white_pos, color_pos;
-        Move return_move = -1;
+        face = (face % 4) + 1;
+        face2 = (face2 % 4) + 1;
+        face3 = (face3 % 4) + 1;
+        face4 = (face4 % 4) + 1;
 
-        if (!find_edge_piece(cubeColors, white, target_color, &white_face, &white_pos, &color_face, &color_pos)) {
-            printf("No edge piece found\n");
+        rotate_face_colors(temp_cubeColors, FACE_IDX_BOTTOM, ROTATE_CLOCKWISE);
+        get_yellow_positions(temp_cubeColors, positions_bottom, positions_sides);
+    }
+    free(temp_cubeColors);
+}
+
+static void solve_PLL(RGBColor (*cubeColors)[9], MoveSequence* solution) {
+    printf("Solve PLL\n");
+
+    if (is_cube_solved(cubeColors)) {
+        printf("Cube is already solved!\n");
+        return;
+    }
+
+    int positions_sides[4][3];
+    get_side_positions(cubeColors, positions_sides);
+
+
+
+    Move moves[] = {MOVE_D_PRIME, MOVE_D2, MOVE_D};
+    Move return_moves[] = {MOVE_D, MOVE_D2, MOVE_D_PRIME};
+
+
+    FaceIndex face = FACE_IDX_FRONT;
+    FaceIndex face2 = FACE_IDX_RIGHT;
+    FaceIndex face3 = FACE_IDX_BACK;
+    FaceIndex face4 = FACE_IDX_LEFT;
+    int id1 = 0, id2 = 1, id3 = 2, id4 = 3;
+    bool f = false;
+
+    for (int i = 0; i < 4; i++) {
+
+        // printf("positions_sides[%d][0]: %d, positions_sides[%d][1]: %d, positions_sides[%d][2]: %d\n", id1, positions_sides[id1][0], id1, positions_sides[id1][1], id1, positions_sides[id1][2]);
+        // printf("positions_sides[%d][0]: %d, positions_sides[%d][1]: %d, positions_sides[%d][2]: %d\n", id2, positions_sides[id2][0], id2, positions_sides[id2][1], id2, positions_sides[id2][2]);
+        // printf("positions_sides[%d][0]: %d, positions_sides[%d][1]: %d, positions_sides[%d][2]: %d\n", id3, positions_sides[id3][0], id3, positions_sides[id3][1], id3, positions_sides[id3][2]);
+        // printf("positions_sides[%d][0]: %d, positions_sides[%d][1]: %d, positions_sides[%d][2]: %d\n", id4, positions_sides[id4][0], id4, positions_sides[id4][1], id4, positions_sides[id4][2]);
+
+        // If all the corners are in place
+        if (
+            positions_sides[id1][0] == 1 && positions_sides[id1][2] == 1 && 
+            positions_sides[id2][0] == 2 && positions_sides[id2][2] == 2 && 
+            positions_sides[id3][0] == 3 && positions_sides[id3][2] == 3 && 
+            positions_sides[id4][0] == 4 && positions_sides[id4][2] == 4
+        ) {
+            printf("All corners are in place\n");
+            if (id1 != 0) {
+                move_sequence_add(solution, moves[id1-1], cubeColors);
+                get_side_positions(cubeColors, positions_sides);
+                if (is_cube_solved(cubeColors)) {
+                    return;
+                }
+            }
+
+            // H Permutation
+            if (positions_sides[0][1] == 3 && positions_sides[1][1] == 4 && positions_sides[2][1] == 1 && positions_sides[3][1] == 2) {
+                printf("H Permutation\n");
+
+                move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+                return;
+            } 
+
+            // Z Permutation
+            if (positions_sides[0][1] == 2 && positions_sides[1][1] == 1 && positions_sides[2][1] == 4 && positions_sides[3][1] == 3) {
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                f = true;
+            }
+            if ((positions_sides[0][1] == 4 && positions_sides[3][1] == 1 && positions_sides[1][1] == 3 && positions_sides[2][1] == 2) || f) {
+                printf("Z Permutation\n");
+
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+                
+                if (f) {
+                    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                } else {
+                    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+                }
+                return;
+            }
+            
+            // U Permutations
+            for (int j = 0; j < 4; j++) {
+                // If one side has all the same color
+                if (positions_sides[j][0] == positions_sides[j][1] && positions_sides[j][2] == positions_sides[j][1]) {
+                    int non_color = positions_sides[j][0];
+
+                    int next_color = (non_color % 4) + 1;
+                    int prev_id = j == 0? 3 : j - 1;
+
+                    // U Permutation : b
+                    if (positions_sides[prev_id][1] == next_color) {
+                        printf("U Permutation: b\n");
+
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_180), cubeColors);
+                    } else {
+                        printf("U Permutation: a\n");
+
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_180), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+                    }
+                    return;
+                }
+                face = (face % 4) + 1;
+                face2 = (face2 % 4) + 1;
+                face3 = (face3 % 4) + 1;
+                face4 = (face4 % 4) + 1;
+            }
+        }
+
+        // If all the edges are in place
+        else if (
+            positions_sides[id1][1] == 1 &&
+            positions_sides[id2][1] == 2 &&
+            positions_sides[id3][1] == 3 &&
+            positions_sides[id4][1] == 4
+        ) 
+        {
+            printf("All edges are in place\n");
+            if (id1 != 0) {
+                move_sequence_add(solution, moves[id1-1], cubeColors);
+                get_side_positions(cubeColors, positions_sides);
+                if (is_cube_solved(cubeColors)) {
+                    return;
+                }
+            }
+            
+            for (int j = 0; j < 4; j++) {
+                int j_next = j == 3? 0: j + 1;
+                int j_prev = j == 0? 3 : j - 1;
+
+                // Aa/Ab Permutation
+                // Find the corner with all the same color
+                if (positions_sides[j][1] == positions_sides[j][2] && positions_sides[j_next][0] == positions_sides[j_next][1]) {
+                    if (positions_sides[j][0] != positions_sides[j_prev][1]) {
+                        printf("Aa Permutation\n");
+
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_180), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_180), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_180), cubeColors);
+                        
+                    } else {
+                        printf("Ab Permutation\n");
+
+                        move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_180), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_180), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_180), cubeColors);
+                    }
+                    return;
+                } 
+                
+                // E Permutation
+                if (positions_sides[j][1] == positions_sides[j_next][0] && positions_sides[j][1] == positions_sides[j_prev][2]) {
+                    printf("E Permutation\n");
+                    
+                    move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+                    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                    move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                    for (int i = 0; i < 3; i++) {
+                        move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+                        move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                    }
+                    move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+                    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                    move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+                    return;
+                }
+                
+                face = (face % 4) + 1;
+                face2 = (face2 % 4) + 1;
+                face3 = (face3 % 4) + 1;
+                face4 = (face4 % 4) + 1;
+            }
+        }
+        
+        id1 = id1 == 3? 0 : id1 + 1;
+        id2 = id2 == 3? 0 : id2 + 1;
+        id3 = id3 == 3? 0 : id3 + 1;
+        id4 = id4 == 3? 0 : id4 + 1;
+    }
+
+    for (int i = 0; i < 4; i++) {
+        // if one side has all the same color
+        if (
+            positions_sides[id1][0] == positions_sides[id1][1] && 
+            positions_sides[id1][2] == positions_sides[id1][1]
+        ) {
+            printf("One side has all the same color\n");
+
+            if (id1 != 0) {
+                move_sequence_add(solution, moves[id1-1], cubeColors);
+                get_side_positions(cubeColors, positions_sides);
+                if (is_cube_solved(cubeColors)) {
+                    return;
+                }
+            }
+
+            // F Permutation
+            if (positions_sides[2][1] == positions_sides[1][2] && positions_sides[2][1] == positions_sides[3][0]) {
+                printf("F Permutation\n");
+
+                move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_180), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_180), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+            }
+            // J Permutation: a
+            else if (positions_sides[2][1] == positions_sides[2][2] && positions_sides[3][0] == positions_sides[1][2]) {
+                printf("J Permutation: a\n");
+
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+                move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+                
+                int idx = (0 - positions_sides[0][1] - 1 + 4) % 4;
+                if (idx != 0) {
+                    move_sequence_add(solution, return_moves[idx], cubeColors);
+                }
+            }
             return;
         }
 
-        // Если белый цвет сверху, но не на своем месте, то опускаем его вниз и обновляем положение 
-        if (white_face == FACE_IDX_TOP) {
-            move_sequence_add(solution,
-                get_move_from_face_and_direction(color_face, ROTATE_180),
-                cubeColors);
-            find_edge_piece(cubeColors, white, target_color, &white_face, &white_pos, &color_face, &color_pos);
-        } 
-
-        // Если белый цвет на одной из боковых граней, то
-        else if (white_face != FACE_IDX_BOTTOM) {
-
-            // Если белый цвет сверху на боковой грани, то поворачиваем эту грань чтобы следующим ходом опустить его вниз
-            if (white_pos == 1) {
-                move_sequence_add(solution, get_move_from_face_and_direction(white_face, ROTATE_CLOCKWISE), cubeColors);
-                find_edge_piece(cubeColors, white, target_color, &white_face, &white_pos, &color_face, &color_pos);
-            } 
-            // Если снизу, то 
-            else if (white_pos == 7) {
-                // Чтобы не помешать другим граням, поворачиваем нижнюю грань на свое место
-                int white_pos_index = index_array(white_face, (int*)adjacent_faces);
-                int move_index = ((white_pos_index - i) + 4) % 4;
-                if (move_index != 0)
-                    move_sequence_add(solution, down_moves[move_index - 1], cubeColors);
-                find_edge_piece(cubeColors, white, target_color, &white_face, &white_pos, &color_face, &color_pos);
-                // И делаем поворот чтобы следующим ходом опустить его вниз
-                move_sequence_add(solution, get_move_from_face_and_direction(white_face, ROTATE_COUNTERCLOCKWISE), cubeColors);
-                find_edge_piece(cubeColors, white, target_color, &white_face, &white_pos, &color_face, &color_pos);
-            }
-
-            // Если цвет на боковой грани, то
-            if ((color_pos == 5 || color_pos == 3) && color_face != adj_face) {
-                // В зависимости от положения цвета, поворачиваем грань по часовой или против часовой стрелки
-                RotationDirection direction = color_pos == 5 ? ROTATE_CLOCKWISE : ROTATE_COUNTERCLOCKWISE;
-                // Если цвет на левой или правой грани, то поворачиваем в противоположную сторону
-                if (color_face == FACE_IDX_LEFT || color_face == FACE_IDX_RIGHT) direction *= -1;
-                // Если сверху деталь на своем месте, то запоминаем, что надо будет вернуть его на место 
-                if (colors_equal(get_color(cubeColors, FACE_IDX_TOP, top_target_positions[index_array(color_face, (int*)adjacent_faces)]), white)) {
-                    return_move = get_move_from_face_and_direction(color_face, -direction);
-                }
-                move_sequence_add(solution, get_move_from_face_and_direction(color_face, direction), cubeColors);
-                find_edge_piece(cubeColors, white, target_color, &white_face, &white_pos, &color_face, &color_pos);
-            }
-
-            // Если цвет на своей грани, то поворачиваем ее на свое место
-            if (color_face == adj_face) {
-                RotationDirection direction = color_pos == 3 ? ROTATE_CLOCKWISE : ROTATE_COUNTERCLOCKWISE;
-                if (color_face == FACE_IDX_LEFT || color_face == FACE_IDX_RIGHT) {
-                    direction = -direction;
-                }
-                move_sequence_add(solution, get_move_from_face_and_direction(color_face, direction), cubeColors);
-                continue;
-            }
-        }
-
-        // Если белый цвет на нижней грани, то поворачиваем нижнюю грань на свое место и поднимаем деталь вверх
-        int white_pos_index = index_array(white_pos, bottom_target_positions);
-        int move_index = ((white_pos_index - i) + 4) % 4;
-        if (move_index != 0)
-            move_sequence_add(solution, down_moves[move_index - 1], cubeColors);
-
-        // Если надо вернуть деталь на место, то делаем это
-        if (return_move != -1) {
-            move_sequence_add(solution, return_move, cubeColors);
-        }
-
-        // Поворачиваем грань на 180 градусов, чтобы поставить деталь на свое место
-        move_sequence_add(solution, get_move_from_face_and_direction(adj_face, ROTATE_180), cubeColors);
-
+        id1 = id1 == 3? 0 : id1 + 1;
+        id2 = id2 == 3? 0 : id2 + 1;
+        id3 = id3 == 3? 0 : id3 + 1;
+        id4 = id4 == 3? 0 : id4 + 1;
     }
 }
 
-
-
-// Simplified middle layer solving
-static void solve_middle_layer(RGBColor (*cubeColors)[9], MoveSequence* solution) {
-
-}
-
-// Simplified last layer solving
-static void solve_last_layer(RGBColor (*cubeColors)[9], MoveSequence* solution) {
-
-}
 
 // Main solver function
 char** cube_solver_solve(Scene* scene) {
@@ -1486,11 +2801,8 @@ char** cube_solver_solve(Scene* scene) {
     // Layer-by-layer solving approach
     solve_white_cross(working_colors, &solution);
     solve_F2L(working_colors, &solution);
-
-    // solve_white_corners(working_colors, &solution);
-    // solve_middle_layer(working_colors, &solution);
-    // solve_last_layer(working_colors, &solution);
-    
+    solve_OLL(working_colors, &solution);
+    solve_PLL(working_colors, &solution);
     printf("Solver completed with %d moves\n", solution.count);
     
     // Convert MoveSequence to char** format

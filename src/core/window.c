@@ -93,29 +93,6 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
         glfwSetWindowShouldClose(handle, GLFW_TRUE);
     }
     
-    // Field of View adjustment
-    if (action == GLFW_PRESS || action == GLFW_REPEAT) {
-        float currentFov = camera->fov;
-        
-        // Increase FOV with + or =
-        if (key == GLFW_KEY_EQUAL || key == GLFW_KEY_KP_ADD) {
-            camera_set_fov(camera, currentFov + 5.0f);
-            printf("FOV: %.1f degrees\n", camera->fov);
-        }
-        
-        // Decrease FOV with - or _
-        if (key == GLFW_KEY_MINUS || key == GLFW_KEY_KP_SUBTRACT) {
-            camera_set_fov(camera, currentFov - 5.0f);
-            printf("FOV: %.1f degrees\n", camera->fov);
-        }
-        
-        // Reset FOV to default (45 degrees) with 0
-        if (key == GLFW_KEY_0 || key == GLFW_KEY_KP_0) {
-            camera_set_fov(camera, 45.0f);
-            printf("FOV reset to 45.0 degrees\n");
-        }
-    }
-    
     // Rubik's Cube Controls
     // Only handle these if we have a valid application reference
     struct Application* app = window->app;
@@ -182,10 +159,36 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
             scene_set_cube_state_from_string(&app->scene, solidColors);
         }
 
-        if (key == GLFW_KEY_E) {
-            const char* solidColors = "WBRRGOOBYWBRRGOOBYWBRRGOOBYWBRRGOOBYWBRRGOOBYWBRRGOOBY";
+        if (key == GLFW_KEY_P) {
+            const char* solidColors = "WWWWWWWWWBBBBBBOBRRRRRRRBRGYYYYYYYYYGGGGGGRGOOOOOOOGOB";
             scene_set_cube_state_from_string(&app->scene, solidColors);
         }
+
+        if (key == GLFW_KEY_K) {
+            const char* solidColors = "WWWWWWWWWBBBBBBGGBRRRRRRRRRYYYYYYYYYGGGGGGOGGOOOOOOOGG";
+            scene_set_cube_state_from_string(&app->scene, solidColors);
+        }
+
+        if (key == GLFW_KEY_J) {
+            const char* solidColors = "WWWWWWWWWBBBBBBRRORRRRRRRBBYYYYYYYYYGGGGGGGGGOOOOOOBOO";
+            scene_set_cube_state_from_string(&app->scene, solidColors);
+        }
+
+        if (key == GLFW_KEY_H) {
+            const char* solidColors = "WWWWWWWWWBBBBBBBRBRRRRRRRBRYYYYYYYYYGGGGGGGOGOOOOOOOGO";
+            scene_set_cube_state_from_string(&app->scene, solidColors);
+        }
+
+        if (key == GLFW_KEY_G) {
+            const char* solidColors = "WWWWWWWWWBBBBBBBBGRRRRRRBROYYYYYYYYYGGGGGGRGROOOOOOOOG";
+            scene_set_cube_state_from_string(&app->scene, solidColors);
+        }
+
+        if (key == GLFW_KEY_A) {
+            const char* solidColors = "WWWWWWWWWBBBBBBOGBRRRRRRRRRYYYYYYYYYGGGGGGGBOOOOOOOGOB";
+            scene_set_cube_state_from_string(&app->scene, solidColors);
+        }
+        
 
         if (key == GLFW_KEY_M) {
             char** moveSequence = generate_random_move_sequence(30);

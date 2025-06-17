@@ -1,0 +1,357 @@
+// PLL H Permutation
+// L R U2 L' R' F' B' U2 F B
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+
+// PLL U Permutation : a
+// R2 U' R' U' R U R U R U' R
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+
+// PLL U Permutation : b
+// R' U R' U' R' U' R' U R U R2
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+
+// PLL Z Permutation
+// R U R' U R' U' R' U R U' R' U' R2 U R
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+
+// PLL Aa Permutation
+// R' F R' B2 R F' R' B2 R2
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+
+// PLL Ab Permutation
+// R B' R F2 R' B R F2 R2
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+
+// PLL E Permutation
+// R2 U F' (R' U R U')3 F U' R2
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+for (int i = 0; i < 3; i++) {
+    move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+}
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+
+// PLL F Permutation
+// R' U R U' R2 F' U' F U R F R' F' R2 U'
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+
+// PLL G Permutation : a
+// R U2 R' U' F' R U R2 U' R' F R U R2 U2 R'
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+
+// PLL G Permutation : b
+// R' U' R B2 D (L' U L U' L) D' B2
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_TOP, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_TOP, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_180), cubeColors);
+
+// PLL G Permutation : c
+// L' U' L U L U' F' L' U' L' U L F U' L U2 L'
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+
+// PLL G Permutation : d
+// R U2 R' U B' R' U' R U R B U R' U' R' U R
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+
+// PLL J Permutation : a
+// R' L' U2 L U L' U2 R U' L U
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+
+// PLL J Permutation : b
+// R U R' F' R U R' U' R' F R2 U' R' U'
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+
+// PLL N Permutation : a
+// (R U' L U2 R' U L')2
+for (int i = 0; i < 2; i++) {
+    move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+}
+
+// PLL N Permutation : b
+// (R' U L' U2 R U' L)2 U
+for (int i = 0; i < 2; i++) {
+    move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_COUNTERCLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+    move_sequence_add(solution, get_move_from_face_and_direction(face4, ROTATE_CLOCKWISE), cubeColors);
+}
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+
+// PLL R Permutation : a
+// R U2 R' U2 R B' R' U' R U R B R2 U
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(ROTATE_CLOCKWISE, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(ROTATE_CLOCKWISE, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+
+// PLL R Permutation : b
+// R' U2 R U2 R' F (R U R' U') R' F' R2 U'
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+
+// PLL T Permutation
+// R U R' U' R' F R2 U' R' U' R U R' F'
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face, ROTATE_COUNTERCLOCKWISE), cubeColors);
+
+// PLL V Permutation
+// R' U R' U' B' R' B2 U' B' U B' R B R
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face3, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_CLOCKWISE), cubeColors);
+
+// PLL Y Permutation
+// R2 U' R2 U' R2 U R2 D' R2 U R2 U' R2 D R2
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_TOP, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_BOTTOM, ROTATE_COUNTERCLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(FACE_IDX_TOP, ROTATE_CLOCKWISE), cubeColors);
+move_sequence_add(solution, get_move_from_face_and_direction(face2, ROTATE_180), cubeColors);
+
+
+// R - FACE2 / face
+// F - FACE / face2
+// U - FACE_IDX_BOTTOM
+// D - FACE_IDX_TOP
+// L - FACE4 / face3
+// B - FACE3 / face4
+// 2 - ROTATE_180
+//   - ROTATE_CLOCKWISE
+// ' - ROTATE_COUNTERCLOCKWISE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
