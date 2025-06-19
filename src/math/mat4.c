@@ -2,11 +2,11 @@
 #include <math.h>
 #include <string.h>
 
+// Создание единичной матрицы 4х4
 Mat4 mat4_identity(void) {
     Mat4 result;
     memset(result.elements, 0, sizeof(float) * 16);
-    
-    // Set diagonal to 1
+
     result.elements[0] = 1.0f;
     result.elements[5] = 1.0f;
     result.elements[10] = 1.0f;
@@ -15,6 +15,7 @@ Mat4 mat4_identity(void) {
     return result;
 }
 
+// Создает матрицу перемещения на заданные координаты
 Mat4 mat4_translation(float x, float y, float z) {
     Mat4 result = mat4_identity();
     
@@ -25,14 +26,14 @@ Mat4 mat4_translation(float x, float y, float z) {
     return result;
 }
 
+// Переместить на заданные координаты
 Mat4 mat4_translate(Mat4 mat, Vec3 translation) {
-    // Create a translation matrix
     Mat4 trans = mat4_translation(translation.x, translation.y, translation.z);
     
-    // Multiply the original matrix by the translation matrix
     return mat4_multiply(mat, trans);
 }
 
+// Создание матрицы поворота на заданный угол в радианах по x
 Mat4 mat4_rotation_x(float radians) {
     Mat4 result = mat4_identity();
     
@@ -47,6 +48,7 @@ Mat4 mat4_rotation_x(float radians) {
     return result;
 }
 
+// Создание матрицы поворота на заданный угол в радианах по y
 Mat4 mat4_rotation_y(float radians) {
     Mat4 result = mat4_identity();
     
@@ -61,6 +63,7 @@ Mat4 mat4_rotation_y(float radians) {
     return result;
 }
 
+// Создание матрицы поворота на заданный угол в радианах по z
 Mat4 mat4_rotation_z(float radians) {
     Mat4 result = mat4_identity();
     
@@ -75,6 +78,7 @@ Mat4 mat4_rotation_z(float radians) {
     return result;
 }
 
+// Создание матрицы масштабирования по осям
 Mat4 mat4_scale(float x, float y, float z) {
     Mat4 result = mat4_identity();
     
@@ -85,14 +89,13 @@ Mat4 mat4_scale(float x, float y, float z) {
     return result;
 }
 
+// Маштабировать mat по Vec3 scale
 Mat4 mat4_scale_vec3(Mat4 mat, Vec3 scale) {
-    // Create a scaling matrix
     Mat4 scaling = mat4_scale(scale.x, scale.y, scale.z);
-    
-    // Multiply the original matrix by the scaling matrix
     return mat4_multiply(mat, scaling);
 }
 
+// Создание матрицы перспективы
 Mat4 mat4_perspective(float fov, float aspect, float near, float far) {
     Mat4 result;
     memset(result.elements, 0, sizeof(float) * 16);
@@ -109,6 +112,7 @@ Mat4 mat4_perspective(float fov, float aspect, float near, float far) {
     return result;
 }
 
+// Проекция со стороны камеры
 Mat4 mat4_look_at(Vec3 eye, Vec3 center, Vec3 up) {
     Mat4 result;
     
@@ -140,6 +144,7 @@ Mat4 mat4_look_at(Vec3 eye, Vec3 center, Vec3 up) {
     return result;
 }
 
+// Умножение двух матриц
 Mat4 mat4_multiply(Mat4 a, Mat4 b) {
     Mat4 result;
     
@@ -156,12 +161,11 @@ Mat4 mat4_multiply(Mat4 a, Mat4 b) {
     return result;
 }
 
+// Порядок элементов по столбцам
 void mat4_set_element(Mat4* mat, int row, int col, float value) {
-    // Column-major order: element[col * 4 + row]
     mat->elements[col * 4 + row] = value;
 }
 
 float mat4_get_element(Mat4 mat, int row, int col) {
-    // Column-major order: element[col * 4 + row]
     return mat.elements[col * 4 + row];
 } 

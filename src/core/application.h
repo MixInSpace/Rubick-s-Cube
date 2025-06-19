@@ -8,7 +8,6 @@
 typedef struct Application {
     Window window;
     Scene scene;
-    int solvedCount;
     bool running;
     float lastFrame;
     float deltaTime;
@@ -17,8 +16,8 @@ typedef struct Application {
     bool needsRedraw;
 } Application;
 
-bool application_init(Application* app);
-void application_run(Application* app);
-void application_cleanup(Application* app);
+bool application_init    (Application* app);
+void application_run     (Application* app);
+void application_cleanup (Application* app);
 
 #endif /* APPLICATION_H */ 

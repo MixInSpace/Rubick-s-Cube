@@ -26,6 +26,7 @@ Vec3 vec3_div(Vec3 a, float scalar) {
     return result;
 }
 
+// Векторное произведение векторов
 Vec3 vec3_cross(Vec3 a, Vec3 b) {
     Vec3 result;
     result.x = a.y * b.z - a.z * b.y;
@@ -34,6 +35,7 @@ Vec3 vec3_cross(Vec3 a, Vec3 b) {
     return result;
 }
 
+// Скалярное произведение
 float vec3_dot(Vec3 a, Vec3 b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
@@ -51,6 +53,7 @@ Vec3 vec3_normalize(Vec3 v) {
     return result;
 }
 
+// Точка на t*100% между векторами 
 Vec3 vec3_lerp(Vec3 a, Vec3 b, float t) {
     Vec3 result = {a.x + t * (b.x - a.x), a.y + t * (b.y - a.y), a.z + t * (b.z - a.z)};
     return result;

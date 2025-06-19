@@ -1,6 +1,8 @@
 #include "core/application.h"
 #include <stdio.h>
 
+static void display_help_message();
+
 int main() {
     Application app;
     
@@ -9,31 +11,16 @@ int main() {
         return -1;
     }
     
-    // Test setting the cube state from a string
-    // Format: "UUUUUUUUURRRRRRRRRFFFFFFFFFDDDDDDDDDLLLLLLLLLBBBBBBBBB"
-    // Order in the string: 
-    // - U: top face (white)
-    // - R: right face (blue)
-    // - F: front face (red)
-    // - D: bottom face (yellow)
-    // - L: left face (green)
-    // - B: back face (orange)
+    display_help_message();
+
+    application_run(&app);
     
-    // Simple solid colors test - each face should be a solid color
-    const char* solidColors = "WWWWWWWWWBBBBBBBBBRRRRRRRRRYYYYYYYYYGGGGGGGGGOOOOOOOOO";
+    application_cleanup(&app);
     
-    // Scrambled state (uncomment to test)
-    //const char* scrambledColors = "WRBRWWRWWBOROBYYBORBOYOBYYRGBGYYGYGORRORGROGWGGBWOWLYLYL";
-    
-    // Checkerboard pattern (uncomment to test)
-    const char* checkerboard = "WYWRORORYGBGORGBGBGBROROBORYWYWYGBGBGBYWYWYWWYWGBORORO";
-    
-    // Apply solid colors to verify basic functionality
-    if (!scene_set_cube_state_from_string(&app.scene, solidColors)) {
-        fprintf(stderr, "Failed to set cube state from string\n");
-    }
-    
-    // Display controls instructions
+    return 0;
+} 
+
+static void display_help_message(){
     printf("\n=== Rubik's Cube Controls ===\n");
     printf("Camera Controls:\n");
     printf("  - Left Mouse Button: Rotate camera view\n");
@@ -49,11 +36,21 @@ int main() {
     printf("  - L: Rotate left face clockwise\n");
     printf("  - R: Rotate right face clockwise\n");
     printf("  - Shift + Letter: Rotate counter-clockwise\n");
-    printf("  - ESC: Exit application\n\n");
-    
-    application_run(&app);
-    
-    application_cleanup(&app);
-    
-    return 0;
-} 
+    printf("\n");
+    printf("Move sequence controls: \n");
+    printf("  - O: Reset cube to solved state\n");
+    printf("  - M: Scramble cube\n");
+    printf("  - S: Solve cube\n");
+    printf("  - 1-2: Patterns\n");
+    printf("  - Shift + Char: Play sequence in browse mode\n");
+    printf("\n");
+    printf("Browse mode controls: \n");
+    printf("  - Left/Right Arrow Keys: Rotate camera view\n");
+    printf("  - Shift + Up/Down Arrow Keys: Zoom in/out\n");
+    printf("  - ESC: Exit browse mode\n");
+    printf("\n");
+    printf("Color mode controls\n");
+    printf("  - 1-6: Set Color for selected element\n");
+    printf("  - Left/Right Arrow Keys: Switch between faces\n");
+    printf("  - C: Enter/Exit color mode\n\n");
+}

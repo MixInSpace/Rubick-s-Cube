@@ -5,79 +5,60 @@
 #include "../math/vec3.h"
 #include "../math/mat4.h"
 
-// Defines camera modes (possible future expansion)
-typedef enum {
-    CAMERA_MODE_ORBIT,   // Orbits around a target point
-    CAMERA_MODE_FREE     // Free-flying camera (not implemented yet)
-} CameraMode;
-
-// Camera structure containing all camera data
 typedef struct {
-    CameraMode mode;
-    
-    // Position and target
+    // Координаты камеры и вектора вверх
     Vec3 position;
-    Vec3 target;
     Vec3 up;
     
-    // Orbit camera parameters
-    float radius;     // Distance from camera to target
-    float theta;      // Horizontal angle in degrees (around Y-axis)
-    float phi;        // Vertical angle in degrees (from Y-axis)
+    // Параметры орбиты
+    float radius;     // Растояние до цели
+    float theta;      // Горизонтальный угол
+    float phi;        // Вертикальный угол
     
-    // Projection parameters
-    float fov;        // Field of view in degrees
-    float nearPlane;  // Near clipping plane
-    float farPlane;   // Far clipping plane
+    // Параметры проекции
+    float fov;        // FOV в градусах
+    float nearPlane;  // Растояние после которого объекты не отображатся
+    float farPlane;   // Растояние после которого объекты не отображатся
     
-    // Camera interaction state
+    // Состояния интеракции с камерой
     bool isDragging;
     double lastMouseX;
     double lastMouseY;
     
-    // Camera settings
-    float sensitivity;    // Mouse sensitivity
-    float zoomSpeed;      // Zoom speed with scroll wheel
-    float minRadius;      // Minimum zoom distance
-    float maxRadius;      // Maximum zoom distance
-    float minPhi;         // Minimum vertical angle (degrees)
-    float maxPhi;         // Maximum vertical angle (degrees)
+    // Настройки камеры
+    float sensitivity;    // Чувсвтительность мыши
+    float zoomSpeed;      // Скорость зума
+    float minRadius;      // Минимальный зум
+    float maxRadius;      // Максимальный зум
+    float minPhi;         // Минимальный вертикальный угол
+    float maxPhi;         // Максимальный вертикальный угол
+
+    // Для движения по таймеру
+    float moveStartTheta, moveEndTheta;
+    float moveStartPhi, moveEndPhi;
+    float moveTimer;      // Прошедшее время
+    float moveDuration;   // Общее время
+    bool isMoving;        
 } Camera;
 
-// Initialize camera with default settings
-void camera_init(Camera* camera);
+void camera_init (Camera* camera);
 
-// Process mouse movement for camera rotation
-void camera_process_mouse_movement(Camera* camera, double xpos, double ypos);
 
-// Start camera drag operation
-void camera_start_drag(Camera* camera, double xpos, double ypos);
+void camera_process_mouse_movement (Camera* camera, double xpos, double ypos);
+void camera_start_drag             (Camera* camera, double xpos, double ypos);
+void camera_end_drag               (Camera* camera);
+void camera_process_scroll         (Camera* camera, double yoffset);
 
-// End camera drag operation
-void camera_end_drag(Camera* camera);
 
-// Process mouse scroll for camera zoom
-void camera_process_scroll(Camera* camera, double yoffset);
+void camera_update (Camera* camera);
 
-// Set camera field of view (in degrees)
-void camera_set_fov(Camera* camera, float fov);
 
-// Update camera position based on current orbit parameters
-void camera_update(Camera* camera);
+Mat4 camera_get_view_matrix       (Camera* camera);
+Mat4 camera_get_projection_matrix (Camera* camera, float aspectRatio);
 
-// Get camera position
-Vec3 camera_get_position(Camera* camera);
 
-// Get camera target (look-at point)
-Vec3 camera_get_target(Camera* camera);
-
-// Get camera up vector
-Vec3 camera_get_up(Camera* camera);
-
-// Get view matrix for the camera
-Mat4 camera_get_view_matrix(Camera* camera);
-
-// Get projection matrix for the camera
-Mat4 camera_get_projection_matrix(Camera* camera, float aspectRatio);
+void camera_move_to         (Camera* camera, float targetTheta, float targetPhi, float duration);
+void camera_update_movement (Camera* camera, float deltaTime);
+bool camera_is_moving       (Camera* camera);
 
 #endif /* CAMERA_H */ 

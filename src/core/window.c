@@ -9,11 +9,12 @@
 #include <stdlib.h>
 #include <time.h>
 
-// Forward declarations
 static void handle_move_sequence(struct Application* app, char** moveSequence, bool browseMode, float speed);
 static char** generate_random_move_sequence(int length);
 static char* generate_random_move(char excludeFace);
+static void framebuffer_size_callback(GLFWwindow* handle, int width, int height);
 
+// Функция для изменения размеров окна
 static void framebuffer_size_callback(GLFWwindow* handle, int width, int height) {
     glViewport(0, 0, width, height);
     Window* window = (Window*)glfwGetWindowUserPointer(handle);
@@ -21,14 +22,13 @@ static void framebuffer_size_callback(GLFWwindow* handle, int width, int height)
     window->height = height;
 }
 
-
 static char** generate_random_move_sequence(int length) {
     char** moveSequence = malloc((length + 1) * sizeof(char*));
-    char lastFace = '\0'; // Track the last face used
+    char lastFace = '\0';
     
     for (int i = 0; i < length; i++) {
         moveSequence[i] = generate_random_move(lastFace);
-        lastFace = moveSequence[i][0]; // Store the face of this move
+        lastFace = moveSequence[i][0];
     }
     moveSequence[length] = NULL;
     return moveSequence;
@@ -44,7 +44,6 @@ static char* generate_random_move(char excludeFace) {
         "R", "R'", "R2"
     };
     
-    // Create filtered list excluding moves with the same face
     char* available_moves[18];
     int available_count = 0;
     
@@ -58,14 +57,15 @@ static char* generate_random_move(char excludeFace) {
     return available_moves[random_move];
 }
 
-// Helper function to handle move sequences
+// Функция для обработки последовательности ходов
 static void handle_move_sequence(struct Application* app, char** moveSequence, bool browseMode, float speed) {
+    // Если загружена в режиме по ходам
     if (browseMode) {
-        // Load sequence into browse mode
+        // Удалить существующую очередь ходов и инициализировать новую
         scene_destroy_move_queue(&app->scene);
         scene_init_move_queue(&app->scene);
         
-        // Add moves to queue
+        // Добавить ходы в очередь
         int i = 0;
         while (moveSequence[i] != NULL) {
             scene_add_move_to_queue(&app->scene, moveSequence[i]);
@@ -74,133 +74,165 @@ static void handle_move_sequence(struct Application* app, char** moveSequence, b
         
         scene_enter_browse_mode(&app->scene);
     } else {
-        // Execute sequence directly at specified speed
+        // Выполнить последовательность напрямую с указанной скоростью
         scene_set_speed_multiplier(&app->scene, speed);
         apply_move_sequence(&app->scene, moveSequence);
-        // Note: speed will be reset when sequence completes in scene_process_move_queue
     }
 }
 
-
+// Функция для обработки нажатий клавиш
 static void key_callback(GLFWwindow* handle, int key, int scancode, int action, int mods) {
+    if (action != GLFW_PRESS) return;
     Window* window = (Window*)glfwGetWindowUserPointer(handle);
     
-    // Get camera reference
+    // Получить ссылку на камеру
     Camera* camera = &window->camera;
     
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-        window->shouldClose = true;
-        glfwSetWindowShouldClose(handle, GLFW_TRUE);
-    }
-    
-    // Rubik's Cube Controls
-    // Only handle these if we have a valid application reference
     struct Application* app = window->app;
-    if (app && app->scene.isRubiksCube && !scene_is_rotating(&app->scene)) {
-        // Check if we're in browse mode
+    if (app && !scene_is_rotating(&app->scene)) {
+        // Обрабока нажатий в специальных режимах
         if (scene_is_in_browse_mode(&app->scene)) {
-            // Browse mode navigation
-            if (key == GLFW_KEY_RIGHT || key == GLFW_KEY_DOWN) {
+            // Навигация в режиме просмотра
+            if (key == GLFW_KEY_RIGHT) {
                 scene_browse_next(&app->scene);
-            } else if (key == GLFW_KEY_LEFT || key == GLFW_KEY_UP) {
+            } 
+            else if (key == GLFW_KEY_LEFT) {
                 scene_browse_previous(&app->scene);
-            } else if (key == GLFW_KEY_C) {
+            } 
+            else if (key == GLFW_KEY_C) {
                 scene_exit_browse_mode(&app->scene);
             }
-            return; // Don't process other keys in browse mode
+            return; // Не обрабатывать другие клавиши в режиме просмотра
+        } else if (scene_is_in_color_mode(&app->scene)) {
+            // Навигация в режиме цвета
+            if (key == GLFW_KEY_RIGHT) {
+                scene_next_color_face(&app->scene, window);
+            } 
+            else if (key == GLFW_KEY_LEFT) {
+                scene_previous_color_face(&app->scene, window);
+            } 
+            // Установить цвет для текущей ячейки
+            else if (key == GLFW_KEY_1) {
+                scene_set_color_for_current_cell(&app->scene, window, 'W');
+            }
+            else if (key == GLFW_KEY_2) {
+                scene_set_color_for_current_cell(&app->scene, window, 'R');
+            }
+            else if (key == GLFW_KEY_3) {
+                scene_set_color_for_current_cell(&app->scene, window, 'B');
+            }
+            else if (key == GLFW_KEY_4) {
+                scene_set_color_for_current_cell(&app->scene, window, 'O');
+            }
+            else if (key == GLFW_KEY_5) {
+                scene_set_color_for_current_cell(&app->scene, window, 'G');
+            }
+            else if (key == GLFW_KEY_6) {
+                scene_set_color_for_current_cell(&app->scene, window, 'Y');
+            }
+            // Выйти из режима раскраски можно только если куб валидный (решается)
+            else if (key == GLFW_KEY_C) {
+                char* cubeString = scene_get_cube_state_as_string(app->scene.cubeColors);
+                
+                bool incomplete = false;
+
+                for (int i = 0; cubeString[i] != '\0'; i++) {
+                    char c = cubeString[i];
+                    if (c == '?'){
+                        incomplete = true;
+                        break;
+                    }
+                }
+
+                if (incomplete) {
+                    printf("Coloring not complete\n");
+                    
+                    const char* solidColors = "WWWWWWWWWRRRRRRRRRBBBBBBBBBOOOOOOOOOGGGGGGGGGYYYYYYYYY";
+                    scene_set_cube_state_from_string(&app->scene, solidColors);
+                    scene_exit_color_mode(&app->scene, window);
+                } else {
+                    bool isSolved = false;
+                    char** moveSequence = cube_solver_solve(&app->scene, &isSolved);
+                    if (isSolved) {
+                        scene_exit_color_mode(&app->scene, window);
+                    }
+                    else {
+                        printf("Not valid cube state\n");
+                    }
+                }
+            }
+            return; // Не обрабатывать другие клавиши в режиме цвета
         }
         
-        // Check for rotation keys only if no rotation is currently in progress
-        int direction = (mods & GLFW_MOD_SHIFT) ? -1 : 1; // -1 for counter-clockwise, 1 for clockwise
+        // Обрабока нажатий в режиме вращения
+        // Если shift зажат, то вращение против часовой стрелки, иначе по часовой стрелке
+        int direction = (mods & GLFW_MOD_SHIFT) ? -1 : 1; 
         
-        // Top face rotation (U key - Up)
+        // Верхняя грань (Up - U)
         if (key == GLFW_KEY_U) {
             scene_start_rotation(&app->scene, FACE_IDX_TOP, direction, 1);
             printf("Rotating top face %s\n", 
                    direction == 1 ? "clockwise" : "counter-clockwise");
         }
-        
-        // Bottom face rotation (D key - Down)
+        // Нижняя грань (Down - D)
         if (key == GLFW_KEY_D) {
             scene_start_rotation(&app->scene, FACE_IDX_BOTTOM, direction, 1);
             printf("Rotating bottom face %s\n", 
                    direction == 1 ? "clockwise" : "counter-clockwise");
         }
-        
-        // Front face rotation (F key - Front)
+        // Передняя грань (Front - F)
         if (key == GLFW_KEY_F) {
             scene_start_rotation(&app->scene, FACE_IDX_FRONT, direction, 1);
             printf("Rotating front face %s\n", 
                    direction == 1 ? "clockwise" : "counter-clockwise");
         }
-        
+        // Задняя грань (Back - B)
         if (key == GLFW_KEY_B) {
             scene_start_rotation(&app->scene, FACE_IDX_BACK, direction, 1);
             printf("Rotating back face %s\n", 
                    direction == 1 ? "clockwise" : "counter-clockwise");
         }
-        
-        // Left face rotation (L key - Left)
+        // Левая грань (Left - L)
         if (key == GLFW_KEY_L) {
             scene_start_rotation(&app->scene, FACE_IDX_LEFT, direction, 1);
             printf("Rotating left face %s\n", 
                    direction == 1 ? "clockwise" : "counter-clockwise");
-        }
-        
-        // Right face rotation (R key - Right)
+        }        
+        // Правая грань (Right - R)
         if (key == GLFW_KEY_R) {
             scene_start_rotation(&app->scene, FACE_IDX_RIGHT, direction, 1);
             printf("Rotating right face %s\n", 
                    direction == 1 ? "clockwise" : "counter-clockwise");
         }
 
+
+        // Сброс куба в исходное состояние
         if (key == GLFW_KEY_O) {
-            const char* solidColors = "WWWWWWWWWBBBBBBBBBRRRRRRRRRYYYYYYYYYGGGGGGGGGOOOOOOOOO";
+            const char* solidColors = "WWWWWWWWWRRRRRRRRRBBBBBBBBBOOOOOOOOOGGGGGGGGGYYYYYYYYY";
             scene_set_cube_state_from_string(&app->scene, solidColors);
         }
 
-        if (key == GLFW_KEY_P) {
-            const char* solidColors = "WWWWWWWWWBBBBBBOBRRRRRRRBRGYYYYYYYYYGGGGGGRGOOOOOOOGOB";
-            scene_set_cube_state_from_string(&app->scene, solidColors);
-        }
 
-        if (key == GLFW_KEY_K) {
-            const char* solidColors = "WWWWWWWWWBBBBBBGGBRRRRRRRRRYYYYYYYYYGGGGGGOGGOOOOOOOGG";
-            scene_set_cube_state_from_string(&app->scene, solidColors);
-        }
-
-        if (key == GLFW_KEY_J) {
-            const char* solidColors = "WWWWWWWWWBBBBBBRRORRRRRRRBBYYYYYYYYYGGGGGGGGGOOOOOOBOO";
-            scene_set_cube_state_from_string(&app->scene, solidColors);
-        }
-
-        if (key == GLFW_KEY_H) {
-            const char* solidColors = "WWWWWWWWWBBBBBBBRBRRRRRRRBRYYYYYYYYYGGGGGGGOGOOOOOOOGO";
-            scene_set_cube_state_from_string(&app->scene, solidColors);
-        }
-
-        if (key == GLFW_KEY_G) {
-            const char* solidColors = "WWWWWWWWWBBBBBBBBGRRRRRRBROYYYYYYYYYGGGGGGRGROOOOOOOOG";
-            scene_set_cube_state_from_string(&app->scene, solidColors);
-        }
-
-        if (key == GLFW_KEY_A) {
-            const char* solidColors = "WWWWWWWWWBBBBBBOGBRRRRRRRRRYYYYYYYYYGGGGGGGBOOOOOOOGOB";
-            scene_set_cube_state_from_string(&app->scene, solidColors);
-        }
-        
-
+        // Если зажат shift, то последовательности воспроизводятся в режиме просмотра по ходам
+        // Случайная последовательность ходов
         if (key == GLFW_KEY_M) {
             char** moveSequence = generate_random_move_sequence(30);
-            handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 300.0f);
-        }
-        if (key == GLFW_KEY_S) {
-            char** moveSequence = cube_solver_solve(&app->scene);
-            handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 300.0f);
-            app->solvedCount++;
-            printf("Solved for the %d time\n", app->solvedCount);
+            handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 7.0f);
         }
 
+        // Решение куба
+        if (key == GLFW_KEY_S) {
+            bool isSolved = false;
+            char** moveSequence = cube_solver_solve(&app->scene, &isSolved);
+            if (isSolved) {
+                handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 3.0f);
+            }
+            else {
+                printf("Not solved\n");
+            }
+        }
+
+        // Примеры последовательностей ходов (Узоры)
         if (key == GLFW_KEY_1) { 
             //B F2 D' R2 F D B' F D' U F' D' L2 F D2 U'
             char* moveSequence[] = {"B", "F2", "D'", "R2", "F", "D", "B'", "F", "D'", "U", "F'", "D'", "L2", "F", "D2", "U'", NULL};
@@ -214,41 +246,52 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
             handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 3.0f);
         }
 
+        // Режим раскраски
+        if (key == GLFW_KEY_C) {
+            scene_enter_color_mode(&app->scene, window);
+        }
     }
 }
 
+// Обрабока нажатий мыши
 static void mouse_button_callback(GLFWwindow* handle, int button, int action, int mods) {
     Window* window = (Window*)glfwGetWindowUserPointer(handle);
-    
+    struct Application* app = window->app;
+
+    // Отключить вращение мышью в режиме раскраски 
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
-        if (action == GLFW_PRESS) {
-            // Start camera drag
+        if (action == GLFW_PRESS && !scene_is_in_color_mode(&app->scene)) {
             camera_start_drag(&window->camera, window->mouseX, window->mouseY);
         } else if (action == GLFW_RELEASE) {
-            // End camera drag
             camera_end_drag(&window->camera);
         }
     }
 }
 
+// Обрабока движения мыши
 static void cursor_pos_callback(GLFWwindow* handle, double xpos, double ypos) {
     Window* window = (Window*)glfwGetWindowUserPointer(handle);
-    
-    // Update current mouse position
-    window->mouseX = xpos;
-    window->mouseY = ypos;
-    
-    // Process mouse movement for camera
-    camera_process_mouse_movement(&window->camera, xpos, ypos);
+
+    // Отключить движения мышью в режиме раскраски
+    if (!scene_is_in_color_mode(&window->app->scene)){
+        // Обновление текущей позиции мыши
+        window->mouseX = xpos;
+        window->mouseY = ypos;
+        
+        // Обрабока движения мыши для камеры
+        camera_process_mouse_movement(&window->camera, xpos, ypos);
+    }
 }
 
+// Обработка колесика мыши
 static void scroll_callback(GLFWwindow* handle, double xoffset, double yoffset) {
     Window* window = (Window*)glfwGetWindowUserPointer(handle);
-    
+    struct Application* app = window->app;
     // Process scroll for camera zoom
     camera_process_scroll(&window->camera, yoffset);
 }
 
+// Инициализация окна 
 bool window_init(Window* window, int width, int height, const char* title) {
     if (!glfwInit()) {
         fprintf(stderr, "Failed to initialize GLFW\n");
@@ -260,7 +303,7 @@ bool window_init(Window* window, int width, int height, const char* title) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     
-    // Enable MSAA (Multi-Sample Anti-Aliasing) with 4 samples
+    // Включить MSAA (Multi-Sample Anti-Aliasing) 4x
     glfwWindowHint(GLFW_SAMPLES, 4);
 
     window->handle = glfwCreateWindow(width, height, title, NULL, NULL);
@@ -271,7 +314,7 @@ bool window_init(Window* window, int width, int height, const char* title) {
     window->mouseX = 0.0;
     window->mouseY = 0.0;
     
-    // Initialize camera
+    // Инициализация камеры
     camera_init(&window->camera);
 
     if (!window->handle) {
@@ -288,7 +331,7 @@ bool window_init(Window* window, int width, int height, const char* title) {
     glfwSetCursorPosCallback(window->handle, cursor_pos_callback);
     glfwSetScrollCallback(window->handle, scroll_callback);
     
-    // Enable VSync to limit frame rate
+    // VSync
     glfwSwapInterval(1);
 
     glewExperimental = GL_TRUE;
@@ -299,29 +342,15 @@ bool window_init(Window* window, int width, int height, const char* title) {
 
     printf("OpenGL Version: %s\n", glGetString(GL_VERSION));
 
-    // Configure OpenGL settings
     glViewport(0, 0, width, height);
     
-    // Enable MSAA in OpenGL
+    // Включить MSAA
     glEnable(GL_MULTISAMPLE);
-    
-    // Print anti-aliasing settings
-    GLint samples;
-    glGetIntegerv(GL_SAMPLES, &samples);
-    printf("MSAA: %d samples\n", samples);
     
     return true;
 }
 
-void window_update(Window* window) {
-    glfwSwapBuffers(window->handle);
-    glfwPollEvents();
-    
-    if (glfwWindowShouldClose(window->handle)) {
-        window->shouldClose = true;
-    }
-}
-
+// Функция которая меняет текущий буфер окна со следующим обновляя viewport
 void window_swap_buffers(Window* window) {
     glfwSwapBuffers(window->handle);
     
@@ -343,15 +372,6 @@ bool window_should_close(Window* window) {
     return window->shouldClose;
 }
 
-void window_set_should_close(Window* window, bool value) {
-    window->shouldClose = value;
-    glfwSetWindowShouldClose(window->handle, value);
-}
-
 Camera* window_get_camera(Window* window) {
     return &window->camera;
 }
-
-Mat4 window_get_view_matrix(Window* window) {
-    return camera_get_view_matrix(&window->camera);
-} 

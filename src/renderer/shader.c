@@ -1,20 +1,19 @@
 #include "shader.h"
-#include "../utils/file.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 bool shader_init_from_source(Shader* shader, const char* vertexSource, const char* fragmentSource) {
-    // Compile shaders
+    // Компиляция шейдеров
     GLuint vertex, fragment;
     int success;
     char infoLog[512];
     
-    // Vertex Shader
+    // Щейдер Вершин
     vertex = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex, 1, &vertexSource, NULL);
     glCompileShader(vertex);
     
-    // Check for compile errors
+    // Проверка на ошибки компиляции
     glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(vertex, 512, NULL, infoLog);
@@ -22,12 +21,12 @@ bool shader_init_from_source(Shader* shader, const char* vertexSource, const cha
         return false;
     }
     
-    // Fragment Shader
+    // Шейдер фрагментов
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragment, 1, &fragmentSource, NULL);
     glCompileShader(fragment);
     
-    // Check for compile errors
+    // Проверка на ошибки компиляции
     glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
     if (!success) {
         glGetShaderInfoLog(fragment, 512, NULL, infoLog);
@@ -36,13 +35,13 @@ bool shader_init_from_source(Shader* shader, const char* vertexSource, const cha
         return false;
     }
     
-    // Shader Program
+    // Шейдер-программа
     shader->id = glCreateProgram();
     glAttachShader(shader->id, vertex);
     glAttachShader(shader->id, fragment);
     glLinkProgram(shader->id);
     
-    // Check for linking errors
+    // Проверка на ошибки линковки
     glGetProgramiv(shader->id, GL_LINK_STATUS, &success);
     if (!success) {
         glGetProgramInfoLog(shader->id, 512, NULL, infoLog);
@@ -52,33 +51,11 @@ bool shader_init_from_source(Shader* shader, const char* vertexSource, const cha
         return false;
     }
     
-    // Delete shaders as they're linked into our program now and no longer necessary
+    // Освободить шейдеры
     glDeleteShader(vertex);
     glDeleteShader(fragment);
     
     return true;
-}
-
-bool shader_init(Shader* shader, const char* vertexPath, const char* fragmentPath) {
-    // Read shader source code from files
-    char* vertexCode = file_read_text(vertexPath);
-    char* fragmentCode = file_read_text(fragmentPath);
-    
-    if (!vertexCode || !fragmentCode) {
-        fprintf(stderr, "Failed to read shader files\n");
-        free(vertexCode);
-        free(fragmentCode);
-        return false;
-    }
-    
-    // Initialize from source
-    bool result = shader_init_from_source(shader, vertexCode, fragmentCode);
-    
-    // Free allocated memory
-    free(vertexCode);
-    free(fragmentCode);
-    
-    return result;
 }
 
 void shader_use(Shader* shader) {

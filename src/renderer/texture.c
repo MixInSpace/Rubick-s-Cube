@@ -3,34 +3,32 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Use STB Image to load texture files
+// Используется STB Image для того чтобы загрузить файлы текстур
 #define STB_IMAGE_IMPLEMENTATION
 #include <STB/stb_image.h>
 #include <GL/glew.h>
 
-// Include embedded texture data
+// Текстуры в бинарном виде
 #include "../resources/embedded_textures.h"
 
-// Global texture storage
+// Глобальное хранилище текстур
 static Texture textures[TEXTURE_COUNT];
 static bool textures_initialized = false;
 
-// Structure to map texture types to embedded texture data
+// map texturetype to raw data
 typedef struct {
     const unsigned char* data;
     unsigned int size;
 } EmbeddedTextureData;
 
-// Array of embedded texture data - will be initialized in init function
+// массив данных
 static EmbeddedTextureData embedded_textures[TEXTURE_COUNT];
 
-// For debugging: texture file paths (not used for loading)
 static const char* texture_names[TEXTURE_COUNT] = {
     "stickerCenter.png",
     "sticker.png"
 };
 
-// Initialize the embedded textures array
 static void init_embedded_textures(void) {
     embedded_textures[TEXTURE_STICKER_CENTER].data = stickerCenter_png;
     embedded_textures[TEXTURE_STICKER_CENTER].size = stickerCenter_png_size;
@@ -39,32 +37,31 @@ static void init_embedded_textures(void) {
     embedded_textures[TEXTURE_STICKER].size = sticker_png_size;
 }
 
-// Load a single texture from embedded data
+// Загрузить текстуру из raw_data в массив
 static bool load_texture(TextureType type) {
     Texture* texture = &textures[type];
     const EmbeddedTextureData* tex_data = &embedded_textures[type];
-    const char* filename = texture_names[type]; // For debug messages only
+    const char* filename = texture_names[type]; 
     
-    // Generate texture
+    // Создаем текстуру
     glGenTextures(1, &texture->id);
     glBindTexture(GL_TEXTURE_2D, texture->id);
     
-    // Set texture parameters
+    // Парметры текстуры
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
-    // Load image data from memory
-    stbi_set_flip_vertically_on_load(1); // Flip image vertically
+    stbi_set_flip_vertically_on_load(1); 
     
-    // Try to load the image from memory
+    // Загружаем из пемяти библиотекой
     unsigned char* data = stbi_load_from_memory(
         tex_data->data, tex_data->size,
         &texture->width, &texture->height, &texture->channels, 0
     );
     
-    // Get stbi error message
+    // Ошибки
     const char* error_msg = stbi_failure_reason();
     
     if (!data) {

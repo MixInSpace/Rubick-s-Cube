@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "quaternion.h": "c",
-        "embedded_shaders.h": "c"
+        "embedded_shaders.h": "c",
+        "texture.h": "c"
     }
 }

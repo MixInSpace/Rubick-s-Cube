@@ -18,27 +18,24 @@ struct Window {
     const char* title;
     bool shouldClose;
     
-    // Mouse state for input handling
+    // Координаты мыши
     double mouseX;
     double mouseY;
     
-    // Camera instance
+    // Инстанс камеры
     Camera camera;
     
-    // Pointer to parent application (for keyboard controls)
+    // Поинтер на родительское приложение для управления кнопками
     struct Application* app;
 };
 
-bool window_init(Window* window, int width, int height, const char* title);
-void window_update(Window* window);
-void window_swap_buffers(Window* window);
-void window_poll_events(void);
-void window_destroy(Window* window);
-bool window_should_close(Window* window);
-void window_set_should_close(Window* window, bool value);
+bool window_init         (Window* window, int width, int height, const char* title);
+void window_swap_buffers (Window* window);
+void window_poll_events  (void);
+void window_destroy      (Window* window);
+bool window_should_close (Window* window);
 
 // Get camera-related information
 Camera* window_get_camera(Window* window);
-Mat4 window_get_view_matrix(Window* window);
 
 #endif /* WINDOW_H */

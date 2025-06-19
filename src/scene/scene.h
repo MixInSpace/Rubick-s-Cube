@@ -6,7 +6,7 @@
 #include "../renderer/mesh.h"
 #include "../math/mat4.h"
 #include "../types.h"
-
+#include "../core/window.h"
 // Color mapping for Rubik's cube faces
 typedef enum {
     CUBE_COLOR_WHITE = 'W',   // Top face (U)
@@ -34,99 +34,83 @@ typedef enum {
     ROTATE_180 = 2
 } RotationDirection;
 
-// Struct to store RGB color values
-typedef struct {
-    float r, g, b;
-} RGBColor;
-
 struct Scene {
-    int id;
     Shader shader;
     
-    // For single cube mode
-    Mesh cube;
-    
-    // For Rubik's cube mode
     Mesh* cubes;
     int numCubes;
-    bool isRubiksCube;
-    float positions[27][3]; // Positions for each cube in the Rubik's grid
+    float positions[27][3]; // Координаты кубов
+    RGBColor cubeColors[6][9]; // Цвета на гранях
     
-    // Color data for faces
-    RGBColor cubeColors[6][9]; // [face][facelet] RGB colors
-    
-    // Rotation animation
+    // Анимация вращения
     bool isRotating;
     float rotationAngle;
     float rotationTarget;
     FaceIndex rotatingFace;
     RotationDirection rotationDirection;
-    int rotatingLayer;     // 0=bottom/left/back, 1=middle, 2=top/right/front
+    int rotatingLayer;     // 0, 1, 2
     char rotationAxis;     // 'x', 'y', or 'z'
-    int rotationRepetitions; // Number of 90-degree state changes needed
-    float speedMultiplier;   // Speed multiplier for animations (1.0 = normal, higher = faster)
+    int rotationRepetitions; 
+    float speedMultiplier;   
     
-    // Move sequence queue
-    char** moveQueue;      // Array of move strings
-    int moveQueueSize;     // Current number of moves in queue
-    int moveQueueCapacity; // Maximum capacity of queue
-    int currentMoveIndex;  // Index of currently executing move
-    bool processingSequence; // Whether we're currently processing a sequence
-    float originalSpeedBeforeSequence; // Store original speed to restore after sequence
+    // Последовательность ходов
+    char** moveQueue;      // Массив ходов
+    int moveQueueSize;     // Число ходов в очереди
+    int moveQueueCapacity; // Максимальная вместимость 
+    int currentMoveIndex;  // Индекс текущего хода
+    bool processingSequence;
+    float originalSpeedBeforeSequence;
     
-    // Browse mode for move queue
-    bool browseMode;       // Whether we're in browse mode
-    int browseIndex;       // Current position in browse mode
-    bool browseNeedsUpdate; // Flag to indicate visual update needed
+    // Browse mode 
+    bool browseMode; 
+    int browseIndex;
+
+    bool colorMode;
+    int colorFace;  // Текущая грань
+    int cellIndex;  // Текущая ячейка
 };
 
-bool scene_init(Scene* scene);
-void scene_update(Scene* scene, float deltaTime);
+void scene_update(Scene* scene, Window* window, float deltaTime);
 void scene_render(Scene* scene, Window* window);
 void scene_destroy(Scene* scene);
 
-// Initialize the scene with a Rubik's cube grid
 bool scene_init_rubiks(Scene* scene);
 
 bool scene_set_cube_state_from_string(Scene* scene, const char* state);
 
-// Get the current Rubik's cube state as a string
-// Returns a dynamically allocated string that must be freed by the caller
-// Format is the same as scene_set_cube_state_from_string
+
 char* scene_get_cube_state_as_string(RGBColor (*cubeColors)[9]);
-
 RGBColor* scene_get_cube_colors(Scene* scene);
-
-// Helper function to create a cube with custom colors based on position and stored colors
-Mesh create_custom_colored_cube(unsigned int visibleFaces, Scene* scene, int x, int y, int z);
-
 void rotate_face_colors(RGBColor (*cubeColors)[9], FaceIndex face, RotationDirection direction);
 
-// Face rotation functions
-void scene_rotate_face(Scene* scene, FaceIndex face, RotationDirection direction);
 
-// Start a face rotation animation
 void scene_start_rotation(Scene* scene, FaceIndex face, RotationDirection direction, int repetitions);
 
-// Check if rotation is in progress
 bool scene_is_rotating(Scene* scene);
 
 void apply_move_sequence(Scene* scene, char** moveSequence);
 
-// Move sequence management functions
+// Последовательность ходов
 void scene_init_move_queue(Scene* scene);
 void scene_destroy_move_queue(Scene* scene);
 void scene_add_move_to_queue(Scene* scene, const char* move);
 void scene_process_move_queue(Scene* scene);
 bool scene_is_processing_sequence(Scene* scene);
 
-// Browse mode functions
+// Browse mode 
 void scene_enter_browse_mode(Scene* scene);
 void scene_exit_browse_mode(Scene* scene);
 void scene_browse_next(Scene* scene);
 void scene_browse_previous(Scene* scene);
 bool scene_is_in_browse_mode(Scene* scene);
-void scene_execute_current_browse_move(Scene* scene);
+
+// Раскраска
+void scene_enter_color_mode(Scene* scene, Window* window);
+void scene_exit_color_mode(Scene* scene, Window* window);
+bool scene_is_in_color_mode(Scene* scene);
+void scene_next_color_face(Scene* scene, Window* window);
+void scene_previous_color_face(Scene* scene, Window* window);
+void scene_set_color_for_current_cell(Scene* scene, Window* window, char color);
 
 // Animation speed control
 void scene_set_speed_multiplier(Scene* scene, float multiplier);
