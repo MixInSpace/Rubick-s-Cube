@@ -72,7 +72,7 @@ static bool load_texture(TextureType type) {
         return false;
     }
     
-    // Determine format based on number of channels
+    // Определение формата на основе числа каналов
     GLenum format;
     switch (texture->channels) {
         case 1:
@@ -92,30 +92,27 @@ static bool load_texture(TextureType type) {
             return false;
     }
     
-    // Upload texture data to GPU
+    // Загрузить данные о текстурах на GPU
     glTexImage2D(GL_TEXTURE_2D, 0, format, texture->width, texture->height, 0, format, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
     
-    // Free image data
+    //  Освобоить данные
     stbi_image_free(data);
     
     printf("Loaded embedded texture '%s' (%dx%d, %d channels)\n", filename, texture->width, texture->height, texture->channels);
     return true;
 }
 
-// Initialize the texture system
+
 bool texture_init_system(void) {
     if (textures_initialized) {
         return true;
     }
     
-    // Initialize textures array
     memset(textures, 0, sizeof(textures));
     
-    // Initialize embedded textures
     init_embedded_textures();
     
-    // Load all textures
     int loaded_count = 0;
     for (int i = 0; i < TEXTURE_COUNT; i++) {
         if (load_texture(i)) {
@@ -128,13 +125,11 @@ bool texture_init_system(void) {
     return loaded_count == TEXTURE_COUNT;
 }
 
-// Clean up the texture system
 void texture_cleanup_system(void) {
     if (!textures_initialized) {
         return;
     }
     
-    // Delete all textures
     for (int i = 0; i < TEXTURE_COUNT; i++) {
         if (textures[i].id != 0) {
             glDeleteTextures(1, &textures[i].id);
@@ -146,7 +141,6 @@ void texture_cleanup_system(void) {
     printf("Texture system cleaned up\n");
 }
 
-// Get a texture by type
 Texture* texture_get(TextureType type) {
     if (!textures_initialized || type < 0 || type >= TEXTURE_COUNT) {
         return NULL;
@@ -155,7 +149,6 @@ Texture* texture_get(TextureType type) {
     return &textures[type];
 }
 
-// Bind a texture to a texture unit
 void texture_bind(Texture* texture, GLuint unit) {
     if (!texture || texture->id == 0) {
         return;
@@ -165,7 +158,6 @@ void texture_bind(Texture* texture, GLuint unit) {
     glBindTexture(GL_TEXTURE_2D, texture->id);
 }
 
-// Unbind a texture from a texture unit
 void texture_unbind(GLuint unit) {
     glActiveTexture(GL_TEXTURE0 + unit);
     glBindTexture(GL_TEXTURE_2D, 0);
