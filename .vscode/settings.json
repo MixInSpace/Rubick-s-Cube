@@ -2,6 +2,7 @@
     "files.associations": {
         "quaternion.h": "c",
         "embedded_shaders.h": "c",
-        "texture.h": "c"
+        "texture.h": "c",
+        "stdbool.h": "c"
     }
 }

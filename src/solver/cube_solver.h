@@ -34,6 +34,7 @@ typedef struct {
 } MoveSequence;
 
 char** cube_solver_solve(Scene* scene, bool* isSolved);
+void cube_solver_set_quiet(bool quiet);
 void move_sequence_init(MoveSequence* sequence);
 void move_sequence_add(MoveSequence* sequence, Move move, RGBColor (*cubeColors)[9]);
 void move_sequence_destroy(MoveSequence* sequence);

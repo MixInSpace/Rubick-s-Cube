@@ -1,6 +1,7 @@
 #include "cube_solver.h"
 #include "oll.h"
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
@@ -13,6 +14,18 @@ static int index_array(int value, int* array){
     }
     return -1;
 }
+
+// Quiet logging for solver
+static bool g_solver_quiet = false;
+void cube_solver_set_quiet(bool quiet) { g_solver_quiet = quiet; }
+static int solver_printf(const char* fmt, ...) {
+    if (g_solver_quiet) return 0;
+    va_list ap; va_start(ap, fmt);
+    int r = vprintf(fmt, ap);
+    va_end(ap);
+    return r;
+}
+#define printf(...) solver_printf(__VA_ARGS__)
 
 // Сравнение цветов с погрешностью
 static bool colors_equal(RGBColor a, RGBColor b) {
@@ -88,6 +101,45 @@ void move_sequence_print(const MoveSequence* sequence) {
         printf("%s ", move_to_string(sequence->moves[i]));
     }
     printf("\n");
+}
+
+static int rotation_to_quarters(RotationDirection dir) {
+    if (dir == ROTATE_CLOCKWISE) return 1;
+    if (dir == ROTATE_COUNTERCLOCKWISE) return -1;
+    return 2;
+}
+
+static void simplify_move_sequence(MoveSequence* sequence) {
+    if (!sequence || sequence->count <= 1) return;
+
+    Move* out = (Move*)malloc(sequence->count * sizeof(Move));
+    if (!out) return;
+
+    int out_count = 0;
+    for (int i = 0; i < sequence->count; ++i) {
+        Move m = sequence->moves[i];
+        if (out_count > 0 && move_to_face(out[out_count - 1]) == move_to_face(m)) {
+            int q1 = rotation_to_quarters(move_to_direction(out[out_count - 1]));
+            int q2 = rotation_to_quarters(move_to_direction(m));
+            int q = (q1 + q2) % 4;
+            if (q < 0) q += 4;
+
+            if (q == 0) {
+                out_count--;
+            } else {
+                RotationDirection ndir = (q == 1) ? ROTATE_CLOCKWISE : (q == 2) ? ROTATE_180 : ROTATE_COUNTERCLOCKWISE;
+                FaceIndex f = move_to_face(m);
+                out[out_count - 1] = get_move_from_face_and_direction(f, ndir);
+            }
+        } else {
+            out[out_count++] = m;
+        }
+    }
+
+    free(sequence->moves);
+    sequence->moves = out;
+    sequence->count = out_count;
+    sequence->capacity = out_count;
 }
 
 const char* move_to_string(Move move) {
@@ -3181,10 +3233,24 @@ static void solve_PLL(RGBColor (*cubeColors)[9], MoveSequence* solution) {
             return;
         }
             
-                id1 = id1 == 3? 0 : id1 + 1;
+        id1 = id1 == 3? 0 : id1 + 1;
         id2 = id2 == 3? 0 : id2 + 1;
         id3 = id3 == 3? 0 : id3 + 1;
         id4 = id4 == 3? 0 : id4 + 1;
+    }
+}
+
+static void fix_lower(RGBColor (*cubeColors)[9], MoveSequence* solution){
+    int positions_sides[4][3];
+    get_side_positions(cubeColors, positions_sides);
+
+    Move return_moves[] = {MOVE_D, MOVE_D2, MOVE_D_PRIME};
+
+    int id = positions_sides[0][1] - 1;
+    printf("%d", id);
+    if (id != 0)
+    {
+        move_sequence_add(solution, return_moves[id-1], cubeColors);
     }
 }
 
@@ -3215,6 +3281,8 @@ char** cube_solver_solve(Scene* scene, bool* isSolved) {
     solve_F2L(working_colors, &solution);
     solve_OLL(working_colors, &solution);
     solve_PLL(working_colors, &solution);
+    fix_lower(working_colors, &solution);
+    simplify_move_sequence(&solution);
     printf("Solver completed with %d moves\n", solution.count);
     
     char** moveSequence = malloc((solution.count + 1) * sizeof(char*));
@@ -3239,6 +3307,12 @@ char** cube_solver_solve(Scene* scene, bool* isSolved) {
     }
     
     moveSequence[solution.count] = NULL;
+    printf("{");
+    for (int i = 0; i < solution.count; ++i) {
+        if (i > 0) printf(", ");
+        printf("\"%s\"", moveSequence[i]);
+    }
+    printf(", NULL};\n");
     
     move_sequence_destroy(&solution);
 

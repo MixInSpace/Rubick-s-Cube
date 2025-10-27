@@ -1,9 +1,42 @@
 #include "core/application.h"
+#include "benchmark/benchmark.h"
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 static void display_help_message();
 
-int main() {
+int main(int argc, char** argv) {
+    // CLI benchmark mode: --benchmark N [--scramble S] [--out file.csv] [--seed X] [--quiet]
+    if (argc >= 2 && (strcmp(argv[1], "--benchmark") == 0 || strcmp(argv[1], "-b") == 0)) {
+        int runs = (argc >= 3) ? atoi(argv[2]) : 100;
+        int scramble = 25;
+        const char* out = "benchmark_results.csv";
+        unsigned int seed = 0u;
+        int quiet = 0;
+
+        for (int i = 3; i < argc; ++i) {
+            if ((strcmp(argv[i], "--scramble") == 0 || strcmp(argv[i], "-s") == 0) && i + 1 < argc) {
+                scramble = atoi(argv[++i]);
+            } else if ((strcmp(argv[i], "--out") == 0 || strcmp(argv[i], "-o") == 0) && i + 1 < argc) {
+                out = argv[++i];
+            } else if (strcmp(argv[i], "--seed") == 0 && i + 1 < argc) {
+                seed = (unsigned int)strtoul(argv[++i], NULL, 10);
+            } else if ((strcmp(argv[i], "--quiet") == 0) || (strcmp(argv[i], "-q") == 0)) {
+                quiet = 1;
+            }
+        }
+
+        printf("Running benchmark: runs=%d, scramble=%d, out=%s, seed=%u%s\n", runs, scramble, out, seed, quiet ? ", quiet" : "");
+        int rc = run_benchmark(runs, scramble, out, seed, quiet);
+        if (rc != 0) {
+            fprintf(stderr, "Benchmark failed (rc=%d)\n", rc);
+            return rc;
+        }
+        printf("Benchmark complete. Results saved to %s\n", out);
+        return 0;
+    }
+
     Application app;
     
     if (!application_init(&app)) {

@@ -23,6 +23,7 @@
                 "${workspaceFolder}/src/renderer/*.c",
                 "${workspaceFolder}/src/scene/*.c",
                 "${workspaceFolder}/src/solver/*.c",
+                "${workspaceFolder}/src/benchmark/*.c",
                 "${workspaceFolder}/src/resources/embedded_textures.*",
                 "-o",
                 "${workspaceFolder}/bin/main.exe",
