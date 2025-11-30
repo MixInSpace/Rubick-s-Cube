@@ -230,6 +230,8 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
             }
             else {
                 printf("Not solved\n");
+                
+                handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 3.0f);
             }
         }
 
@@ -248,11 +250,9 @@ static void key_callback(GLFWwindow* handle, int key, int scancode, int action, 
         }
         if (key == GLFW_KEY_3) { 
             //U2 F2 R2 U' L2 D B R' B R' B R' D' L2 U'
-            char* moveSequence[] = {"B", "U", "D", "F", "D'", "B", "U2", "R'", "L'", "F", "D", "U'", "L'", "R", "B", "D'", "L'", "U2", "R", "B2", "U", "F'", "D'", "R2", "F'", "L'", "D2", "L", "R", "U'", NULL};
-            
+            char* moveSequence[] = {"B", "U", "D", "F", "D'", "B", "U2", "R'", "L'", "F", "D", "U'", "L'", "R", "B", "D'", "L'", "U2", "R", "B2", "U", "F'", "D'", "R2", "F'", "L'", "D2", "L", "R", "U'", NULL};            
             handle_move_sequence(app, moveSequence, mods & GLFW_MOD_SHIFT, 3.0f);
         }
-
         // Режим раскраски
         if (key == GLFW_KEY_C) {
             scene_enter_color_mode(&app->scene, window);

@@ -2819,7 +2819,19 @@ static void solve_PLL(RGBColor (*cubeColors)[9], MoveSequence* solution) {
         id4 = id4 == 3? 0 : id4 + 1;
     }
 
-    for (int i = 0; i < 4; i++) {      
+    for (int i = 0; i < 4; i++) {     
+        // for (int k = 0; k < 3; k++) {
+        //     printf("id1: %d - %d\n", k, positions_sides[id1][k]);
+        // }
+        // for (int k = 0; k < 3; k++) {
+        //     printf("id2: %d - %d\n", k, positions_sides[id2][k]);
+        // }
+        // for (int k = 0; k < 3; k++) {
+        //     printf("id3: %d - %d\n", k, positions_sides[id3][k]);
+        // }
+        // for (int k = 0; k < 3; k++) {
+        //     printf("id4: %d - %d\n", k, positions_sides[id4][k]);
+        // } 
         // V Permutation
          if (
             positions_sides[id1][2] == positions_sides[id1][1] &&
@@ -2858,7 +2870,6 @@ static void solve_PLL(RGBColor (*cubeColors)[9], MoveSequence* solution) {
             }
             return;
         }
-
         // Y Permutation
         else if (
             positions_sides[id1][2] == positions_sides[id1][1] &&
@@ -3009,7 +3020,8 @@ static void solve_PLL(RGBColor (*cubeColors)[9], MoveSequence* solution) {
         else if (
             positions_sides[id1][0] == positions_sides[id1][1] && 
             positions_sides[id4][2] == positions_sides[id2][0] &&
-            positions_sides[id4][2] == positions_sides[id3][1]
+            positions_sides[id4][2] == positions_sides[id3][1] && 
+            positions_sides[id3][0] == positions_sides[id3][2]
         ) {
             printf("G Permutation : b\n");
             if (id1 != 0) {
